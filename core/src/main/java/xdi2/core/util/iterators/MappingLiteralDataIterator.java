@@ -9,7 +9,7 @@ import xdi2.core.Literal;
  * 
  * @author markus
  */
-public class MappingLiteralDataIterator extends MappingIterator<Literal, String> {
+public class MappingLiteralDataIterator extends MappingIterator<Literal, Object> {
 
 	public MappingLiteralDataIterator(Iterator<Literal> literals) {
 
@@ -17,7 +17,7 @@ public class MappingLiteralDataIterator extends MappingIterator<Literal, String>
 	}
 
 	@Override
-	public String map(Literal literal) {
+	public Object map(Literal literal) {
 
 		return literal.getLiteralData();
 	}

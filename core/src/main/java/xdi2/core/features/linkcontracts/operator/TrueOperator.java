@@ -11,8 +11,8 @@ import xdi2.core.features.linkcontracts.condition.Condition;
 import xdi2.core.features.linkcontracts.evaluation.PolicyEvaluationContext;
 import xdi2.core.features.linkcontracts.policy.Policy;
 import xdi2.core.features.nodetypes.XdiAbstractEntity;
-import xdi2.core.features.roots.XdiInnerRoot;
-import xdi2.core.features.roots.XdiLocalRoot;
+import xdi2.core.features.nodetypes.XdiInnerRoot;
+import xdi2.core.features.nodetypes.XdiLocalRoot;
 
 /**
  * An XDI $true operator, represented as a relation.
@@ -62,10 +62,10 @@ public class TrueOperator extends ConditionOperator {
 	public static TrueOperator createTrueOperator(Policy policy, Condition condition) {
 
 		if (policy == null) throw new NullPointerException();
-		
+
 		XdiInnerRoot xdiInnerRoot = XdiLocalRoot.findLocalRoot(policy.getContextNode().getGraph()).findInnerRoot(policy.getContextNode().getXri(), XDIConstants.XRI_S_TRUE, true);
 
-		xdiInnerRoot.createRelativeStatement(condition.getStatement());
+		xdiInnerRoot.setRelativeStatement(condition.getStatementXri());
 
 		return fromRelation(xdiInnerRoot.getPredicateRelation());
 	}

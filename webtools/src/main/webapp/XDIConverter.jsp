@@ -25,7 +25,7 @@
 
 	<% } %>
 
-	<form action="XDIConverter" method="post">
+	<form action="XDIConverter" method="post" id="form">
 
 		<textarea class="input" name="input" style="width: 100%" rows="12"><%= request.getAttribute("input") != null ? request.getAttribute("input") : "" %></textarea><br>
 
@@ -47,7 +47,8 @@
 		<select name="resultFormat">
 		<option value="XDI/JSON" <%= resultFormat.equals("XDI/JSON") ? "selected" : "" %>>XDI/JSON</option>
 		<option value="XDI DISPLAY" <%= resultFormat.equals("XDI DISPLAY") ? "selected" : "" %>>XDI DISPLAY</option>
-		<option value="XDI/JSON/GOM" <%= resultFormat.equals("XDI/JSON/GOM") ? "selected" : "" %>>XDI/JSON/GOM</option>
+		<option value="XDI/JSON/TREE" <%= resultFormat.equals("XDI/JSON/TREE") ? "selected" : "" %>>XDI/JSON/TREE</option>
+		<option value="XDI/JSON/PARSE" <%= resultFormat.equals("XDI/JSON/PARSE") ? "selected" : "" %>>XDI/JSON/PARSE</option>
 		<option value="KEYVALUE" <%= resultFormat.equals("KEYVALUE") ? "selected" : "" %>>KEYVALUE</option>
 		</select>
 
@@ -59,7 +60,8 @@
 
 		<input name="writePretty" type="checkbox" <%= writePretty.equals("on") ? "checked" : "" %>>pretty=1
 
-		<input type="submit" value="Go!">
+		<input type="submit" name="submit" value="Go!" onclick="document.getElementById('form').removeAttribute('target')">
+		<input type="submit" name="submit" value="Html!" onclick="document.getElementById('form').setAttribute('target','_blank')">
 		&nbsp;&nbsp;&nbsp;&nbsp;<a href="XDIConverterHelp.jsp">What can I do here?</a>
 
 	</form>
@@ -69,13 +71,13 @@
 		<%= request.getAttribute("stats") %>
 
 		<% if (request.getAttribute("output") != null) { %>
-			Copy&amp;Paste: <textarea style="width: 100px; height: 1.2em; overflow: hidden"><%= request.getAttribute("output") != null ? request.getAttribute("output") : "" %></textarea>
+			Copy&amp;Paste: <textarea style="width: 100px; height: 1.2em; overflow: hidden"><%= request.getAttribute("output") %></textarea>
 		<% } %>
 		</p>
 	<% } %>
 
 	<% if (request.getAttribute("output") != null) { %>
-		<div class="result"><pre><%= request.getAttribute("output") != null ? request.getAttribute("output") : "" %></pre></div><br>
+		<div class="result"><pre><%= request.getAttribute("output") %></pre></div><br>
 	<% } %>
 
 	</div>	

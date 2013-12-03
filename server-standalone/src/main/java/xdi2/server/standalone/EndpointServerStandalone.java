@@ -2,15 +2,20 @@ package xdi2.server.standalone;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 
+import xdi2.core.plugins.PluginsLoader;
 import xdi2.server.embedded.EndpointServerEmbedded;
+import xdi2.server.exceptions.Xdi2ServerException;
 
 public class EndpointServerStandalone {
 
 	public static void main(String... args) throws Exception {
+
+		// check arguments
 
 		String applicationContextPath;
 		String jettyApplicationContextPath;
@@ -33,6 +38,18 @@ public class EndpointServerStandalone {
 			return;
 		}
 
+		// load plugins
+
+		try {
+
+			PluginsLoader.loadPlugins();
+		} catch (IOException ex) {
+
+			throw new Xdi2ServerException("Cannot load plugins: " + ex.getMessage(), ex);
+		}
+
+		// start the server
+
 		File applicationContextFile = new File(applicationContextPath);
 		if (! applicationContextFile.exists()) throw new FileNotFoundException(applicationContextPath + " not found");
 
@@ -48,6 +65,6 @@ public class EndpointServerStandalone {
 
 	private static void usage() {
 
-		System.out.println("Usage: java -jar xdi2-server-standalone-XXX.one-jar.jar <path-to-applicationContext.xml> <path-to-jetty-applicationContext.xml>");
+		System.out.println("Usage: java -jar xdi2-server-standalone-XXX.one-jar.jar [path-to-applicationContext.xml] [path-to-jetty-applicationContext.xml]");
 	}
 }

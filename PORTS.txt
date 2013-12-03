@@ -1,12 +1,24 @@
 Known default HTTP ports of various XDI2 projects.
 
 8080: xdi2-server-embedded / xdi2-server-standalone / xdi2-server-war / xdi2-webtools
-12220: xdi2-xrinet
+11110: danube-desktop (DEPRECATED)
+11120: danube-clouds-desktop
+12220: neustar-discovery-service
 13330: xdi2-cds
+14440: neustar-clouds
 9090: xdi2-connector-template
 9091: xdi2-connector-facebook
 9092: xdi2-connector-personal
 9093: xdi2-connector-allfiled
 9094: xdi2-connector-google-calendar
 9990: xdi2-zephyr
+9991: xdi2-redis
+9992: xdi2-mongodb
 9110: xdi2-pixel
+9120: xdi2-oauth2
+7071: rn-member-graph-service
+7072: rn-discovery-service
+7073: rn-registration-service
+7074: rn-respect-connect-service
+7075: rn-reputation-service
+7101: rn-respect-connect-builder

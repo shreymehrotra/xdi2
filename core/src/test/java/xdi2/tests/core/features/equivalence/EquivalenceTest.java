@@ -14,12 +14,12 @@ public class EquivalenceTest extends TestCase {
 	public void testIdentity() throws Exception {
 
 		Graph graph = MemoryGraphFactory.getInstance().openGraph();
-		ContextNode contextNode = graph.getRootContextNode().createContextNode(XDI3SubSegment.create("=markus"));
-		ContextNode identityContextNode = graph.getRootContextNode().createContextNodes(XDI3Segment.create("!1111"));
+		ContextNode contextNode = graph.getRootContextNode().setContextNode(XDI3SubSegment.create("=markus"));
+		ContextNode identityContextNode = graph.getRootContextNode().setDeepContextNode(XDI3Segment.create("=pseudo"));
 
 		// test $is
 
-		Equivalence.addIdentityContextNode(contextNode, identityContextNode);
+		Equivalence.setIdentityContextNode(contextNode, identityContextNode);
 
 		assertEquals(Equivalence.getIdentityContextNodes(contextNode).next(), identityContextNode);
 		assertEquals(Equivalence.getIncomingIdentityContextNodes(identityContextNode).next(), contextNode);
@@ -34,16 +34,15 @@ public class EquivalenceTest extends TestCase {
 		assertTrue(contextNode.isEmpty());
 		assertTrue(identityContextNode.isEmpty());
 		contextNode.delete();
-		System.out.println(graph);
 		assertTrue(graph.isEmpty());
 	}
 
 	public void testReference() throws Exception {
 
 		Graph graph = MemoryGraphFactory.getInstance().openGraph();
-		ContextNode contextNode = graph.getRootContextNode().createContextNode(XDI3SubSegment.create("=markus"));
-		ContextNode referenceContextNode = graph.getRootContextNode().createContextNode(XDI3SubSegment.create("!1111"));
-		ContextNode replacementContextNode = graph.getRootContextNode().createContextNode(XDI3SubSegment.create("!2222"));
+		ContextNode contextNode = graph.getRootContextNode().setContextNode(XDI3SubSegment.create("=markus"));
+		ContextNode referenceContextNode = graph.getRootContextNode().setDeepContextNode(XDI3Segment.create("=pseudo1"));
+		ContextNode replacementContextNode = graph.getRootContextNode().setDeepContextNode(XDI3Segment.create("=pseudo2"));
 
 		// test $ref
 

@@ -6,8 +6,8 @@ import java.util.Iterator;
 import xdi2.core.ContextNode;
 import xdi2.core.Graph;
 import xdi2.core.constants.XDIConstants;
-import xdi2.core.features.nodetypes.XdiEntityClass;
-import xdi2.core.features.nodetypes.XdiEntityClass.MappingContextNodeXdiEntityClassIterator;
+import xdi2.core.features.nodetypes.XdiEntityCollection;
+import xdi2.core.features.nodetypes.XdiEntityCollection.MappingContextNodeXdiEntityCollectionIterator;
 import xdi2.core.impl.memory.MemoryGraphFactory;
 import xdi2.core.util.iterators.DescendingIterator;
 import xdi2.core.util.iterators.EmptyIterator;
@@ -81,7 +81,7 @@ public class MessageEnvelope implements Serializable, Comparable<MessageEnvelope
 		if (targetAddress == null) targetAddress = XDIConstants.XRI_S_CONTEXT;
 
 		MessageEnvelope messageEnvelope = new MessageEnvelope();
-		Message message = messageEnvelope.getMessage(XDIMessagingConstants.XRI_S_ANONYMOUS, true);
+		Message message = messageEnvelope.createMessage(XDIMessagingConstants.XRI_S_ANONYMOUS);
 		message.createOperation(operationXri, targetAddress);
 
 		return messageEnvelope;
@@ -98,7 +98,7 @@ public class MessageEnvelope implements Serializable, Comparable<MessageEnvelope
 		if (targetStatements == null) throw new NullPointerException();
 
 		MessageEnvelope messageEnvelope = new MessageEnvelope();
-		Message message = messageEnvelope.getMessage(XDIMessagingConstants.XRI_S_ANONYMOUS, true);
+		Message message = messageEnvelope.createMessage(XDIMessagingConstants.XRI_S_ANONYMOUS);
 		message.createOperation(operationXri, targetStatements);
 
 		return messageEnvelope;
@@ -114,7 +114,7 @@ public class MessageEnvelope implements Serializable, Comparable<MessageEnvelope
 
 		try {
 
-			if (targetAddressOrTargetStatement == null) targetAddressOrTargetStatement = "()";
+			if (targetAddressOrTargetStatement == null) targetAddressOrTargetStatement = "";
 
 			XDI3Segment targetAddress = XDI3Segment.create(targetAddressOrTargetStatement);
 			return MessageEnvelope.fromOperationXriAndTargetAddress(operationXri, targetAddress);
@@ -146,14 +146,16 @@ public class MessageEnvelope implements Serializable, Comparable<MessageEnvelope
 	 */
 	public MessageCollection getMessageCollection(XDI3Segment senderXri, boolean create) {
 
-		XDI3Segment messageCollectionXri = XDI3Segment.create(senderXri.toString() + XdiEntityClass.createArcXri(XDIMessagingConstants.XRI_SS_MSG));
-		ContextNode contextNode = this.getGraph().findContextNode(messageCollectionXri, create);
+		if (senderXri == null) senderXri = XDIMessagingConstants.XRI_S_ANONYMOUS;
+
+		XDI3Segment messageCollectionXri = XDI3Segment.create(senderXri.toString() + XdiEntityCollection.createArcXri(XDIMessagingConstants.XRI_SS_MSG));
+		ContextNode contextNode = create ? this.getGraph().setDeepContextNode(messageCollectionXri) : this.getGraph().getDeepContextNode(messageCollectionXri);
 
 		if (contextNode == null) return null;
 
-		XdiEntityClass xdiEntityClass = XdiEntityClass.fromContextNode(contextNode);
+		XdiEntityCollection xdiEntityCollection = XdiEntityCollection.fromContextNode(contextNode);
 
-		return new MessageCollection(this, xdiEntityClass);
+		return new MessageCollection(this, xdiEntityCollection);
 	}
 
 	/**
@@ -166,7 +168,7 @@ public class MessageEnvelope implements Serializable, Comparable<MessageEnvelope
 
 		Iterator<ContextNode> contextNodes = this.getGraph().getRootContextNode().getAllContextNodes();
 
-		return new MappingXdiEntityClassMessageCollectionIterator(this, new MappingContextNodeXdiEntityClassIterator(contextNodes));
+		return new MappingXdiEntityCollectionMessageCollectionIterator(this, new MappingContextNodeXdiEntityCollectionIterator(contextNodes));
 	}
 
 	/**
@@ -228,7 +230,7 @@ public class MessageEnvelope implements Serializable, Comparable<MessageEnvelope
 	/**
 	 * Returns the number of message collections in the message envelope.
 	 */
-	public int getMessageCollectionCount() {
+	public long getMessageCollectionCount() {
 
 		Iterator<MessageCollection> iterator = this.getMessageCollections();
 
@@ -238,7 +240,7 @@ public class MessageEnvelope implements Serializable, Comparable<MessageEnvelope
 	/**
 	 * Returns the number of messages in the message envelope.
 	 */
-	public int getMessageCount() {
+	public long getMessageCount() {
 
 		Iterator<Message> iterator = this.getMessages();
 
@@ -248,7 +250,7 @@ public class MessageEnvelope implements Serializable, Comparable<MessageEnvelope
 	/**
 	 * Returns the number of operations in all messages of the message envelope.
 	 */
-	public int getOperationCount() {
+	public long getOperationCount() {
 
 		Iterator<Operation> iterator = this.getOperations();
 
@@ -260,14 +262,24 @@ public class MessageEnvelope implements Serializable, Comparable<MessageEnvelope
 	 */
 
 	/**
-	 * Returns or creates a new XDI message in this XDI message envelope for a given sender.
+	 * Creates a new XDI message in this XDI message envelope for a given sender.
 	 * @param senderXri The sender.
-	 * @param create Whether to create a message collection if it does not exist.
-	 * @return The newly created XDI message collection.
+	 * @return The newly created XDI message.
 	 */
-	public Message getMessage(XDI3Segment senderXri, boolean create) {
+	public Message createMessage(XDI3Segment senderXri) {
 
-		return this.getMessageCollection(senderXri, true).getMessage(create);
+		return this.getMessageCollection(senderXri, true).createMessage();
+	}
+
+	/**
+	 * Creates a new XDI message in this XDI message envelope for a given sender.
+	 * @param senderXri The sender.
+	 * @param index Index in an ordered collection.
+	 * @return The newly created XDI message.
+	 */
+	public Message createMessage(XDI3Segment senderXri, long index) {
+
+		return this.getMessageCollection(senderXri, true).createMessage(index);
 	}
 
 	/*
@@ -313,16 +325,16 @@ public class MessageEnvelope implements Serializable, Comparable<MessageEnvelope
 	 * Helper classes
 	 */
 
-	public static class MappingXdiEntityClassMessageCollectionIterator extends NotNullIterator<MessageCollection> {
+	public static class MappingXdiEntityCollectionMessageCollectionIterator extends NotNullIterator<MessageCollection> {
 
-		public MappingXdiEntityClassMessageCollectionIterator(final MessageEnvelope messageEnvelope, Iterator<XdiEntityClass> xdiEntityClasses) {
+		public MappingXdiEntityCollectionMessageCollectionIterator(final MessageEnvelope messageEnvelope, Iterator<XdiEntityCollection> xdiEntityCollections) {
 
-			super(new MappingIterator<XdiEntityClass, MessageCollection> (xdiEntityClasses) {
+			super(new MappingIterator<XdiEntityCollection, MessageCollection> (xdiEntityCollections) {
 
 				@Override
-				public MessageCollection map(XdiEntityClass xdiEntityClass) {
+				public MessageCollection map(XdiEntityCollection xdiEntityCollection) {
 
-					return MessageCollection.fromMessageEnvelopeAndXdiEntityClass(messageEnvelope, xdiEntityClass);
+					return MessageCollection.fromMessageEnvelopeAndXdiEntityClass(messageEnvelope, xdiEntityCollection);
 				}
 			});
 		}

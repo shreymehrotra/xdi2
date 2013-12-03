@@ -6,7 +6,7 @@ import xdi2.core.ContextNode;
 import xdi2.core.util.iterators.MappingIterator;
 import xdi2.core.util.iterators.NotNullIterator;
 
-public abstract class XdiAbstractAttribute extends XdiAbstractSubGraph implements XdiAttribute {
+public abstract class XdiAbstractAttribute extends XdiAbstractSubGraph<XdiAttribute> implements XdiAttribute {
 
 	private static final long serialVersionUID = 7648046902369626744L;
 
@@ -26,9 +26,11 @@ public abstract class XdiAbstractAttribute extends XdiAbstractSubGraph implement
 	 */
 	public static boolean isValid(ContextNode contextNode) {
 
+		if (contextNode == null) return false;
+
 		return XdiAttributeSingleton.isValid(contextNode) || 
-				XdiAttributeInstanceUnordered.isValid(contextNode) ||
-				XdiAttributeInstanceOrdered.isValid(contextNode);
+				XdiAttributeMemberUnordered.isValid(contextNode) ||
+				XdiAttributeMemberOrdered.isValid(contextNode);
 	}
 
 	/**
@@ -41,8 +43,8 @@ public abstract class XdiAbstractAttribute extends XdiAbstractSubGraph implement
 		XdiAttribute xdiAttribute = null;
 
 		if ((xdiAttribute = XdiAttributeSingleton.fromContextNode(contextNode)) != null) return xdiAttribute;
-		if ((xdiAttribute = XdiAttributeInstanceUnordered.fromContextNode(contextNode)) != null) return xdiAttribute;
-		if ((xdiAttribute = XdiAttributeInstanceOrdered.fromContextNode(contextNode)) != null) return xdiAttribute;
+		if ((xdiAttribute = XdiAttributeMemberUnordered.fromContextNode(contextNode)) != null) return xdiAttribute;
+		if ((xdiAttribute = XdiAttributeMemberOrdered.fromContextNode(contextNode)) != null) return xdiAttribute;
 
 		return null;
 	}

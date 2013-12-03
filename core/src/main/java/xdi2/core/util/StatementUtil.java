@@ -3,12 +3,8 @@ package xdi2.core.util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import xdi2.core.constants.XDIConstants;
-import xdi2.core.exceptions.Xdi2ParseException;
 import xdi2.core.xri3.XDI3Segment;
 import xdi2.core.xri3.XDI3Statement;
-import xdi2.core.xri3.XDI3SubSegment;
-import xdi2.core.xri3.XDI3XRef;
 
 /**
  * Various utility methods for working with statements.
@@ -22,146 +18,91 @@ public final class StatementUtil {
 	private StatementUtil() { }
 
 	/**
-	 * Creates an XDI statement from its three components
-	 * @param subject The statement's subject
-	 * @param predicate The statement's predicate
-	 * @param object The statement's object
-	 * @return An XDI statement
+	 * Removes a start XRI from a statement.
+	 * E.g. for =a*b*c*d&/&/... and =a*b, this returns *c*d&/&/...
 	 */
-	public static XDI3Statement fromComponents(final XDI3Segment subject, final XDI3Segment predicate, final Object object) {
+	public static XDI3Statement removeStartXriStatement(final XDI3Statement statementXri, final XDI3Segment start, final boolean removeFromTargetContextNodeXri, final boolean variablesInXri, boolean variablesInStart) {
 
-		return XDI3Statement.create("" + subject + "/" + predicate + "/" + StatementUtil.statementObjectToString(object));
-	}
+		if (statementXri == null) throw new NullPointerException();
+		if (start == null) throw new NullPointerException();
 
-	/**
-	 * Creates an XDI statement from a context node XRI and an arc XRI.
-	 * @param contextNodeXri The context node XRI
-	 * @param arcXri The arc XRI
-	 * @return An XDI statement
-	 */
-	public static XDI3Statement fromContextNodeComponents(final XDI3Segment contextNodeXri, final XDI3Segment arcXri) {
+		if (statementXri.isInnerRootNotation()) throw new IllegalArgumentException();
 
-		return fromComponents(contextNodeXri, XDIConstants.XRI_S_CONTEXT, arcXri);
-	}
+		XDI3Statement result = null;
 
-	/**
-	 * Creates an XDI statement from a context node XRI, arc XRI, and target context node XRI.
-	 * @param contextNodeXri The context node XRI
-	 * @param arcXri The arc XRI
-	 * @return An XDI statement
-	 */
-	public static XDI3Statement fromRelationComponents(final XDI3Segment contextNodeXri, final XDI3Segment arcXri, final XDI3Segment targetContextNodeXri) {
+		try {
 
-		return fromComponents(contextNodeXri, arcXri, targetContextNodeXri);
-	}
+			XDI3Segment subject;
+			XDI3Segment predicate;
+			Object object;
 
-	/**
-	 * Creates an XDI statement from a context node XRI and literal data.
-	 * @param contextNodeXri The context node XRI
-	 * @param literalData The literal data
-	 * @return An XDI statement
-	 */
-	public static XDI3Statement fromLiteralComponents(final XDI3Segment contextNodeXri, final String literalData) {
+			// subject
 
-		return fromComponents(contextNodeXri, XDIConstants.XRI_S_LITERAL, literalData);
-	}
+			subject = XDI3Util.removeStartXri(statementXri.getSubject(), start, variablesInXri, variablesInStart);
+			if (subject == null) { result = null; return result; }
 
-	/**
-	 * Creates an XDI statement from an XRI segment in the form (subject/predicate/object)
-	 * @param segment The XRI segment
-	 * @return An XDI statement
-	 */
-	public static XDI3Statement fromXriSegment(XDI3Segment segment) throws Xdi2ParseException {
+			// predicate
 
-		XDI3SubSegment subSegment = segment.getFirstSubSegment();
-		if (subSegment == null) throw new Xdi2ParseException("No subsegment found: " + segment.toString());
+			predicate = statementXri.getPredicate();
 
-		XDI3XRef xref = subSegment.getXRef();
-		if (xref == null) throw new Xdi2ParseException("No cross-reference found: " + segment.toString());
+			// object
 
-		XDI3Statement statement = xref.getStatement();
-		if (statement == null) throw new Xdi2ParseException("No statement found: " + segment.toString());
+			if (statementXri.isRelationStatement() && removeFromTargetContextNodeXri) {
 
-		return statement;
-	}
+				object = XDI3Util.removeStartXri((XDI3Segment) statementXri.getObject(), start, variablesInXri, variablesInStart);
+				if (object == null) { result = null; return result; }
+			} else {
 
-	/**
-	 * Creates an expanded statement from a base XRI.
-	 * E.g. for *c*d/!/... and =a*b, this returns =a*b*c*d/!/...
-	 */
-	public static XDI3Statement expandStatement(XDI3Statement statement, XDI3Segment base) {
+				object = statementXri.getObject();
+			}
 
-		if (log.isTraceEnabled()) log.trace("expandStatement(" + statement + "," + base + ")");
+			{ result = XDI3Statement.fromComponents(subject, predicate, object); return result; }
+		} finally {
 
-		XDI3Segment subject = XDI3Util.expandXri(statement.getSubject(), base);
-		XDI3Segment predicate = statement.getPredicate();
-		Object object = (statement.isRelationStatement() && ! statement.hasInnerRootStatement()) ? XDI3Util.expandXri((XDI3Segment) statement.getObject(), base) : statement.getObject();
-
-		return fromComponents(subject, predicate, object);
-	}
-
-	/**
-	 * Creates a reduced statement from a base XRI.
-	 * E.g. for =a*b*c*d/!/... and =a*b, this returns *c*d/!/...
-	 */
-	public static XDI3Statement reduceStatement(XDI3Statement statement, XDI3Segment base, boolean variablesInXri, boolean variablesInBase) {
-
-		if (log.isTraceEnabled()) log.trace("reduceStatement(" + statement + "," + base + "," + variablesInXri + "," + variablesInBase + ")");
-
-		XDI3Segment subject;
-		XDI3Segment predicate;
-		Object object;
-
-		// subject
-
-		subject = statement.getSubject().equals(base) ? XDIConstants.XRI_S_ROOT : XDI3Util.reduceXri(statement.getSubject(), base, variablesInXri, variablesInBase);
-		if (subject == null) return null;
-
-		// predicate
-
-		predicate = statement.getPredicate();
-
-		// object
-
-		if (statement.isRelationStatement()) {
-
-			object = statement.getObject().equals(base) ? XDIConstants.XRI_S_ROOT : XDI3Util.reduceXri((XDI3Segment) statement.getObject(), base, variablesInXri, variablesInBase);
-			if (object == null) return null;
-		} else {
-
-			object = statement.getObject();
+			if (log.isTraceEnabled()) log.trace("removeStartXriStatement(" + statementXri + "," + start + "," + removeFromTargetContextNodeXri + "," + variablesInXri + "," + variablesInStart + ") --> " + result);
 		}
-
-		return fromComponents(subject, predicate, object);
 	}
 
 	/**
-	 * Creates a reduced statement from a base XRI.
-	 * E.g. for =a*b*c*d/!/... and =a*b, this returns *c*d/!/...
+	 * Removes a start XRI from a statement.
+	 * E.g. for =a*b*c*d&/&/... and =a*b, this returns *c*d&/&/...
 	 */
-	public static XDI3Statement reduceStatement(XDI3Statement statement, XDI3Segment base) {
+	public static XDI3Statement removeStartXriStatement(final XDI3Statement statementXri, final XDI3Segment start, final boolean removeFromTargetContextNodeXri) {
 
-		return reduceStatement(statement, base, false, false);
+		return removeStartXriStatement(statementXri, start, removeFromTargetContextNodeXri, false, false);
 	}
 
-	public static String statementObjectToString(Object object) {
+	/**
+	 * Concats an XRI and a statement into a new statement.
+	 * E.g. for *c*d&/&/... and =a*b, this returns =a*b*c*d&/&/...
+	 */
+	public static XDI3Statement concatXriStatement(final XDI3Segment xri, final XDI3Statement statementXri, final boolean concatTargetContextNodeXri) {
 
-		if (object instanceof String) {
+		if (statementXri == null) throw new NullPointerException();
 
-			return "\"" + ((String) object).replace("\"", "\\\"") + "\"";
-		} else {
+		if (statementXri.isInnerRootNotation()) throw new IllegalArgumentException();
 
-			return object.toString();
+		XDI3Statement result = null;
+
+		try {
+
+			XDI3Segment subject = XDI3Util.concatXris(xri, statementXri.getSubject());
+			XDI3Segment predicate = statementXri.getPredicate();
+
+			Object object;
+
+			if (statementXri.isRelationStatement() && concatTargetContextNodeXri) {
+
+				object = XDI3Util.concatXris(xri, (XDI3Segment) statementXri.getObject());
+			} else {
+
+				object = statementXri.getObject();
+			}
+
+			{ result = XDI3Statement.fromComponents(subject, predicate, object); return result; }
+		} finally {
+
+			if (log.isTraceEnabled()) log.trace("concatXriStatement(" + xri + "," + statementXri + "," + concatTargetContextNodeXri + ") --> " + result);
 		}
 	}
 }
-
-
-
-
-
-
-
-
-
-

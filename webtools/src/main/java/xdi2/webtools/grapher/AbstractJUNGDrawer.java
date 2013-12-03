@@ -17,6 +17,7 @@ import xdi2.core.Statement;
 import xdi2.core.Statement.ContextNodeStatement;
 import xdi2.core.Statement.LiteralStatement;
 import xdi2.core.Statement.RelationStatement;
+import xdi2.core.impl.AbstractLiteral;
 import xdi2.webtools.util.WebtoolsUtil;
 import edu.uci.ics.jung.algorithms.layout.Layout;
 import edu.uci.ics.jung.graph.DirectedGraph;
@@ -68,6 +69,7 @@ public abstract class AbstractJUNGDrawer implements Drawer {
 
 	static class MyVertexFillPaintTransformer implements Transformer<Object, Paint> {
 
+		@Override
 		public Paint transform(Object object) {
 
 			if (object instanceof ContextNode) return Color.GREEN;
@@ -83,6 +85,7 @@ public abstract class AbstractJUNGDrawer implements Drawer {
 		private final Stroke relationStatementStroke = new BasicStroke(1.5f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10.0f, new float[] { 3.0f, 3.0f }, 0.0f);
 		private final Stroke literalStatementStroke = new BasicStroke(0.5f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10.0f);
 
+		@Override
 		public Stroke transform(Statement statement) { 
 
 			if (statement instanceof ContextNodeStatement) return this.contextNodeStatementStroke;
@@ -99,7 +102,7 @@ public abstract class AbstractJUNGDrawer implements Drawer {
 		public String transform(Object object) {
 
 			if (object instanceof ContextNode) return ((ContextNode) object).getXri().getLastSubSegment().toString();
-			if (object instanceof Literal) return ((Literal) object).getLiteralData();
+			if (object instanceof Literal) return AbstractLiteral.literalDataToString(((Literal) object).getLiteralData());
 
 			return null;
 		}

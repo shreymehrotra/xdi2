@@ -8,10 +8,12 @@ import xdi2.messaging.MessageResult;
 import xdi2.messaging.exceptions.Xdi2MessagingException;
 import xdi2.messaging.exceptions.Xdi2NotAuthorizedException;
 import xdi2.messaging.target.ExecutionContext;
+import xdi2.messaging.target.MessagingTarget;
 import xdi2.messaging.target.Prototype;
 import xdi2.messaging.target.impl.graph.GraphMessagingTarget;
 import xdi2.messaging.target.interceptor.AbstractInterceptor;
 import xdi2.messaging.target.interceptor.MessageInterceptor;
+import xdi2.messaging.target.interceptor.impl.util.MessagePolicyEvaluationContext;
 
 /**
  * This interceptor evaluates message policies.
@@ -20,7 +22,17 @@ import xdi2.messaging.target.interceptor.MessageInterceptor;
  */
 public class MessagePolicyInterceptor extends AbstractInterceptor implements MessageInterceptor, Prototype<MessagePolicyInterceptor> {
 
-	private Graph messagePolicyGraph;
+	private Graph messagePolicyGraph; 
+
+	public MessagePolicyInterceptor(Graph messagePolicyGraph) {
+
+		this.messagePolicyGraph = messagePolicyGraph;
+	}
+
+	public MessagePolicyInterceptor() {
+
+		this.messagePolicyGraph = null;
+	}
 
 	/*
 	 * Prototype
@@ -33,16 +45,26 @@ public class MessagePolicyInterceptor extends AbstractInterceptor implements Mes
 
 		MessagePolicyInterceptor interceptor = new MessagePolicyInterceptor();
 
-		// set the XDI message policy graph
+		// set the graph
 
-		if (this.messagePolicyGraph == null && prototypingContext.getMessagingTarget() instanceof GraphMessagingTarget) {
-
-			interceptor.setMessagePolicyGraph(((GraphMessagingTarget) prototypingContext.getMessagingTarget()).getGraph());
-		}
+		interceptor.setMessagePolicyGraph(this.getMessagePolicyGraph());
 
 		// done
 
 		return interceptor;
+	}
+
+	/*
+	 * Init and shutdown
+	 */
+
+	@Override
+	public void init(MessagingTarget messagingTarget) throws Exception {
+
+		super.init(messagingTarget);
+
+		if (this.getMessagePolicyGraph() == null && messagingTarget instanceof GraphMessagingTarget) this.setMessagePolicyGraph(((GraphMessagingTarget) messagingTarget).getGraph()); 
+		if (this.getMessagePolicyGraph() == null) throw new Xdi2MessagingException("No message policy graph.", null, null);
 	}
 
 	/*
@@ -57,7 +79,7 @@ public class MessagePolicyInterceptor extends AbstractInterceptor implements Mes
 		PolicyRoot policyRoot = message.getPolicyRoot(false);
 		if (policyRoot == null) return false;
 
-		PolicyEvaluationContext policyEvaluationContext = new MessagePolicyEvaluationContext(this.getMessagePolicyGraph(), message);
+		PolicyEvaluationContext policyEvaluationContext = new MessagePolicyEvaluationContext(message, this.getMessagePolicyGraph());
 
 		if (! Boolean.TRUE.equals(policyRoot.evaluate(policyEvaluationContext))) {
 
@@ -76,6 +98,10 @@ public class MessagePolicyInterceptor extends AbstractInterceptor implements Mes
 
 		return false;
 	}
+
+	/*
+	 * Getters and setters
+	 */
 
 	public Graph getMessagePolicyGraph() {
 

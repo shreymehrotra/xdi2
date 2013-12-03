@@ -3,8 +3,8 @@ package xdi2.messaging.target.impl.graph;
 import java.io.IOException;
 
 import xdi2.core.Graph;
-import xdi2.core.features.roots.XdiLocalRoot;
-import xdi2.core.features.roots.XdiPeerRoot;
+import xdi2.core.features.nodetypes.XdiLocalRoot;
+import xdi2.core.features.nodetypes.XdiPeerRoot;
 import xdi2.core.xri3.XDI3Segment;
 import xdi2.core.xri3.XDI3Statement;
 import xdi2.messaging.MessageEnvelope;
@@ -25,8 +25,6 @@ import xdi2.messaging.target.StatementHandler;
 public class GraphMessagingTarget extends AbstractMessagingTarget implements Prototype<GraphMessagingTarget> {
 
 	private Graph graph;
-	//	private GraphAddressHandler graphAddressHandler;
-	//	private GraphStatementHandler graphStatementHandler;
 	private GraphContextHandler graphContextHandler;
 
 	public GraphMessagingTarget() {
@@ -34,8 +32,6 @@ public class GraphMessagingTarget extends AbstractMessagingTarget implements Pro
 		super();
 
 		this.graph = null;
-		//		this.graphAddressHandler = null;
-		//		this.graphStatementHandler = null;
 		this.graphContextHandler = null;
 	}
 
@@ -43,8 +39,6 @@ public class GraphMessagingTarget extends AbstractMessagingTarget implements Pro
 	public void init() throws Exception {
 
 		super.init();
-
-		// read owner
 	}
 
 	@Override
@@ -56,7 +50,7 @@ public class GraphMessagingTarget extends AbstractMessagingTarget implements Pro
 	}
 
 	@Override
-	public XDI3Segment getOwnerAddress() {
+	public XDI3Segment getOwnerAuthority() {
 
 		XdiPeerRoot selfPeerRoot = XdiLocalRoot.findLocalRoot(this.getGraph()).getSelfPeerRoot();
 		if (selfPeerRoot == null) return null;

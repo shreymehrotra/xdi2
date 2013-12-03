@@ -69,6 +69,28 @@
 
 	<servlet>
 		<description></description>
+		<display-name>XDISigner</display-name>
+		<servlet-name>XDISigner</servlet-name>
+		<servlet-class>xdi2.webtools.signer.XDISigner</servlet-class>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>XDISigner</servlet-name>
+		<url-pattern>/XDISigner</url-pattern>
+	</servlet-mapping>
+
+	<servlet>
+		<description></description>
+		<display-name>XDIDiscoverer</display-name>
+		<servlet-name>XDIDiscoverer</servlet-name>
+		<servlet-class>xdi2.webtools.discoverer.XDIDiscoverer</servlet-class>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>XDIDiscoverer</servlet-name>
+		<url-pattern>/XDIDiscoverer</url-pattern>
+	</servlet-mapping>
+
+	<servlet>
+		<description></description>
 		<display-name>XDIGrapher</display-name>
 		<servlet-name>XDIGrapher</servlet-name>
 		<servlet-class>xdi2.webtools.grapher.XDIGrapher</servlet-class>
@@ -116,7 +138,7 @@
 	<!-- LISTENERS -->
 
 	<listener>
-		<listener-class>xdi2.server.spring.PluginsLoaderListener</listener-class>
+		<listener-class>xdi2.server.servlet.PluginsLoaderListener</listener-class>
 	</listener>
 
 	<listener>

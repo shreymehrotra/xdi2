@@ -26,7 +26,7 @@ import com.sleepycat.je.Transaction;
 
 /**
  * This class defines access to a BDB based datastore. It is used by the
- * BDBGraphFactory class to create graphs stored in BDB.
+ * BDBKeyValueGraphFactory class to create graphs stored in BDB.
  * 
  * @author markus
  */
@@ -56,7 +56,7 @@ public class BDBKeyValueStore extends AbstractKeyValueStore implements KeyValueS
 	@Override
 	public void init() throws IOException {
 
-		log.debug("Opening environment and database...");
+		if (log.isDebugEnabled()) log.debug("Opening environment and database...");
 
 		this.environment = new Environment(new File(this.databasePath), this.environmentConfig);
 		this.database = this.environment.openDatabase(null, this.databaseName, this.databaseConfig);
@@ -66,7 +66,7 @@ public class BDBKeyValueStore extends AbstractKeyValueStore implements KeyValueS
 	@Override
 	public void close() {
 
-		log.debug("Closing environment and database...");
+		if (log.isDebugEnabled()) log.debug("Closing environment and database...");
 
 		try {
 
@@ -83,9 +83,9 @@ public class BDBKeyValueStore extends AbstractKeyValueStore implements KeyValueS
 	}
 
 	@Override
-	public void put(String key, String value) {
+	public void set(String key, String value) {
 
-		log.trace("put(" + key + "," + value + ")");
+		if (log.isTraceEnabled()) log.trace("set(" + key + "," + value + ")");
 
 		DatabaseEntry dbKey = new DatabaseEntry(key.getBytes());
 		DatabaseEntry dbValue = new DatabaseEntry(value.getBytes());
@@ -109,7 +109,7 @@ public class BDBKeyValueStore extends AbstractKeyValueStore implements KeyValueS
 	@Override
 	public String getOne(String key) {
 
-		log.trace("getOne(" + key + ")");
+		if (log.isTraceEnabled()) log.trace("getOne(" + key + ")");
 
 		DatabaseEntry dbKey = new DatabaseEntry(key.getBytes());
 		DatabaseEntry dbValue = new DatabaseEntry();
@@ -134,7 +134,7 @@ public class BDBKeyValueStore extends AbstractKeyValueStore implements KeyValueS
 	@Override
 	public Iterator<String> getAll(String key) {
 
-		log.trace("getAll(" + key + ")");
+		if (log.isTraceEnabled()) log.trace("getAll(" + key + ")");
 
 		DatabaseEntry dbKey = new DatabaseEntry(key.getBytes());
 		DatabaseEntry dbValue = new DatabaseEntry();
@@ -159,7 +159,7 @@ public class BDBKeyValueStore extends AbstractKeyValueStore implements KeyValueS
 	@Override
 	public boolean contains(String key) {
 
-		log.trace("contains(" + key + ")");
+		if (log.isTraceEnabled()) log.trace("contains(" + key + ")");
 
 		DatabaseEntry dbKey = new DatabaseEntry(key.getBytes());
 		DatabaseEntry dbValue = new DatabaseEntry();
@@ -184,7 +184,7 @@ public class BDBKeyValueStore extends AbstractKeyValueStore implements KeyValueS
 	@Override
 	public boolean contains(String key, String value) {
 
-		log.trace("contains(" + key + "," + value + ")");
+		if (log.isTraceEnabled()) log.trace("contains(" + key + "," + value + ")");
 
 		DatabaseEntry dbKey = new DatabaseEntry(key.getBytes());
 		DatabaseEntry dbValue = new DatabaseEntry(value.getBytes());
@@ -209,7 +209,7 @@ public class BDBKeyValueStore extends AbstractKeyValueStore implements KeyValueS
 	@Override
 	public void delete(String key) {
 
-		log.trace("delete(" + key + ")");
+		if (log.isTraceEnabled()) log.trace("delete(" + key + ")");
 
 		DatabaseEntry dbKey = new DatabaseEntry(key.getBytes());
 
@@ -231,7 +231,7 @@ public class BDBKeyValueStore extends AbstractKeyValueStore implements KeyValueS
 	@Override
 	public void delete(String key, String value) {
 
-		log.info("delete(" + key + "," + value + ")");
+		if (log.isTraceEnabled()) log.trace("delete(" + key + "," + value + ")");
 
 		DatabaseEntry dbKey = new DatabaseEntry(key.getBytes());
 		DatabaseEntry dbValue = new DatabaseEntry(value.getBytes());
@@ -274,7 +274,7 @@ public class BDBKeyValueStore extends AbstractKeyValueStore implements KeyValueS
 	@Override
 	public void clear() {
 
-		log.trace("clear()");
+		if (log.isTraceEnabled()) log.trace("clear()");
 
 		Transaction transaction = this.transaction;
 		if (transaction == null) transaction = this.environment.beginTransaction(null, null);
@@ -306,11 +306,11 @@ public class BDBKeyValueStore extends AbstractKeyValueStore implements KeyValueS
 	@Override
 	public void beginTransaction() {
 
-		log.trace("beginTransaction()");
+		if (log.isTraceEnabled()) log.trace("beginTransaction()");
 
 		if (this.transaction != null) throw new Xdi2RuntimeException("Already have an open transaction.");
 
-		log.debug("Beginning Transaction...");
+		if (log.isDebugEnabled()) log.debug("Beginning Transaction...");
 
 		try {
 
@@ -320,13 +320,13 @@ public class BDBKeyValueStore extends AbstractKeyValueStore implements KeyValueS
 			throw new Xdi2RuntimeException("Cannot begin transaction: " + ex.getMessage(), ex);
 		}
 
-		log.debug("Began transaction...");
+		if (log.isDebugEnabled()) log.debug("Began transaction...");
 	}
 
 	@Override
 	public void commitTransaction() {
 
-		log.trace("commitTransaction()");
+		if (log.isTraceEnabled()) log.trace("commitTransaction()");
 
 		if (this.transaction == null) throw new Xdi2RuntimeException("No open transaction.");
 
@@ -339,17 +339,17 @@ public class BDBKeyValueStore extends AbstractKeyValueStore implements KeyValueS
 			throw new Xdi2RuntimeException("Cannot commit transaction: " + ex.getMessage(), ex);
 		}
 
-		log.debug("Committed transaction...");
+		if (log.isDebugEnabled()) log.debug("Committed transaction...");
 	}
 
 	@Override
 	public void rollbackTransaction() {
 
-		log.trace("rollbackTransaction()");
+		if (log.isTraceEnabled()) log.trace("rollbackTransaction()");
 
 		if (this.transaction == null) throw new Xdi2RuntimeException("No open transaction.");
 
-		log.debug("Rolling back transaction...");
+		if (log.isDebugEnabled()) log.debug("Rolling back transaction...");
 
 		try {
 
@@ -367,18 +367,39 @@ public class BDBKeyValueStore extends AbstractKeyValueStore implements KeyValueS
 			}
 		}
 
-		log.debug("Rolled back transaction...");
+		if (log.isDebugEnabled()) log.debug("Rolled back transaction...");
 	}
 
 	public String getDatabasePath() {
-	
+
 		return this.databasePath;
 	}
 
 	public String getDatabaseName() {
-	
+
 		return this.databaseName;
 	}
+
+	/*
+	 * Helper methods
+	 */
+
+	public static void cleanup(String databasePath) {
+
+		File path = new File(databasePath);
+
+		if (path.exists()) {
+
+			for (File file : path.listFiles()) {
+
+				file.delete();
+			}
+		}
+	}
+
+	/*
+	 * Helper classes
+	 */
 
 	private class CursorDuplicatesIterator extends ReadOnlyIterator<String> {
 
@@ -390,7 +411,7 @@ public class BDBKeyValueStore extends AbstractKeyValueStore implements KeyValueS
 		private CursorDuplicatesIterator(Transaction transaction, DatabaseEntry dbKey, DatabaseEntry dbValue) {
 
 			super(null);
-			
+
 			this.dbKey = dbKey;
 			this.dbValue = dbValue;
 
@@ -416,7 +437,7 @@ public class BDBKeyValueStore extends AbstractKeyValueStore implements KeyValueS
 		@Override
 		public String next() {
 
-			log.trace("CursorDuplicatesIterator.next()");
+			if (log.isTraceEnabled()) log.trace("CursorDuplicatesIterator.next()");
 
 			String element = new String(this.dbValue.getData());
 

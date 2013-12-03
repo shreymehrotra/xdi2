@@ -11,19 +11,19 @@ public abstract class AbstractRelation implements Relation {
 
 	private static final long serialVersionUID = -9055773010138710261L;
 
-	private Graph graph;
 	private ContextNode contextNode;
 
-	public AbstractRelation(Graph graph, ContextNode contextNode) {
+	public AbstractRelation(ContextNode contextNode) {
 
-		this.graph = graph;
+		if (contextNode == null) throw new NullPointerException();
+		
 		this.contextNode = contextNode;
 	}
 
 	@Override
 	public Graph getGraph() {
 
-		return this.graph;
+		return this.getContextNode().getGraph();
 	}
 
 	@Override
@@ -35,13 +35,13 @@ public abstract class AbstractRelation implements Relation {
 	@Override
 	public synchronized void delete() {
 
-		this.getContextNode().deleteRelation(this.getArcXri(), this.getTargetContextNodeXri());
+		this.getContextNode().delRelation(this.getArcXri(), this.getTargetContextNodeXri());
 	}
 
 	@Override
 	public ContextNode follow() {
 
-		return this.getGraph().findContextNode(this.getTargetContextNodeXri(), false);
+		return this.getGraph().getDeepContextNode(this.getTargetContextNodeXri());
 	}
 
 	/*

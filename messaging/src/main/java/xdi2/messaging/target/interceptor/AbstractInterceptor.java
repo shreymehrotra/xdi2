@@ -1,27 +1,16 @@
 package xdi2.messaging.target.interceptor;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import xdi2.messaging.target.AbstractDecorator;
 
-import xdi2.messaging.Message;
-import xdi2.messaging.MessageResult;
-import xdi2.messaging.exceptions.Xdi2MessagingException;
-import xdi2.messaging.target.AbstractMessagingTarget;
-import xdi2.messaging.target.ExecutionContext;
-import xdi2.messaging.target.MessagingTarget;
+public abstract class AbstractInterceptor extends AbstractDecorator implements Interceptor {
 
-public abstract class AbstractInterceptor implements Interceptor {
+	public AbstractInterceptor(int initPriority, int shutdownPriority) {
 
-	private static final Logger log = LoggerFactory.getLogger(AbstractMessagingTarget.class);
+		super(initPriority, shutdownPriority);
+	}
 
-	protected void feedback(Message message, MessageResult messageResult, ExecutionContext executionContext) throws Xdi2MessagingException {
+	public AbstractInterceptor() {
 
-		MessagingTarget messagingTarget = executionContext.getCurrentMessagingTarget();
-
-		if (! (messagingTarget instanceof AbstractMessagingTarget)) throw new Xdi2MessagingException("Cannot only feedback on an AbstractMessagingTarget", null, executionContext);
-
-		if (log.isDebugEnabled()) log.debug(this.getClass().getSimpleName() + ": Initiating Feedback.");
-		((AbstractMessagingTarget) messagingTarget).execute(message, messageResult, executionContext);
-		if (log.isDebugEnabled()) log.debug(this.getClass().getSimpleName() + ": Feedback completed.");
+		super();
 	}
 }

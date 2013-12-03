@@ -5,8 +5,9 @@ import java.util.Iterator;
 
 import xdi2.core.ContextNode;
 import xdi2.core.features.nodetypes.XdiEntity;
-import xdi2.core.features.nodetypes.XdiEntityClass;
-import xdi2.core.features.nodetypes.XdiEntityInstanceUnordered;
+import xdi2.core.features.nodetypes.XdiEntityCollection;
+import xdi2.core.features.nodetypes.XdiEntityMemberOrdered;
+import xdi2.core.features.nodetypes.XdiEntityMemberUnordered;
 import xdi2.core.util.iterators.DescendingIterator;
 import xdi2.core.util.iterators.IteratorCounter;
 import xdi2.core.util.iterators.IteratorListMaker;
@@ -26,14 +27,14 @@ public final class MessageCollection implements Serializable, Comparable<Message
 	private static final long serialVersionUID = -7493408194946194153L;
 
 	private MessageEnvelope messageEnvelope;
-	private XdiEntityClass xdiEntityClass;
+	private XdiEntityCollection xdiEntityCollection;
 
-	protected MessageCollection(MessageEnvelope messageEnvelope, XdiEntityClass xdiEntityClass) {
+	protected MessageCollection(MessageEnvelope messageEnvelope, XdiEntityCollection xdiEntityCollection) {
 
-		if (messageEnvelope == null || xdiEntityClass == null) throw new NullPointerException();
+		if (messageEnvelope == null || xdiEntityCollection == null) throw new NullPointerException();
 
 		this.messageEnvelope = messageEnvelope;
-		this.xdiEntityClass = xdiEntityClass;
+		this.xdiEntityCollection = xdiEntityCollection;
 	}
 
 	/*
@@ -42,25 +43,25 @@ public final class MessageCollection implements Serializable, Comparable<Message
 
 	/**
 	 * Checks if an XDI entity class is a valid XDI message collection.
-	 * @param xdiEntityClass The XDI entity class to check.
+	 * @param xdiEntityCollection The XDI entity class to check.
 	 * @return True if the XDI entity class is a valid XDI message collection.
 	 */
-	public static boolean isValid(XdiEntityClass xdiEntityClass) {
+	public static boolean isValid(XdiEntityCollection xdiEntityCollection) {
 
-		return xdiEntityClass.getContextNode().getArcXri().equals(XdiEntityClass.createArcXri(XDIMessagingConstants.XRI_SS_MSG));
+		return xdiEntityCollection.getContextNode().getArcXri().equals(XdiEntityCollection.createArcXri(XDIMessagingConstants.XRI_SS_MSG));
 	}
 
 	/**
 	 * Factory method that creates an XDI message collection bound to a given XDI entity class.
 	 * @param messageEnvelope The XDI message envelope to which this XDI message collection belongs.
-	 * @param xdiEntityClass The XDI entity class that is an XDI message collection.
+	 * @param xdiEntityCollection The XDI entity class that is an XDI message collection.
 	 * @return The XDI message collection.
 	 */
-	public static MessageCollection fromMessageEnvelopeAndXdiEntityClass(MessageEnvelope messageEnvelope, XdiEntityClass xdiEntityClass) {
+	public static MessageCollection fromMessageEnvelopeAndXdiEntityClass(MessageEnvelope messageEnvelope, XdiEntityCollection xdiEntityCollection) {
 
-		if (! isValid(xdiEntityClass)) return null;
+		if (! isValid(xdiEntityCollection)) return null;
 
-		return new MessageCollection(messageEnvelope, xdiEntityClass);
+		return new MessageCollection(messageEnvelope, xdiEntityCollection);
 	}
 
 	/*
@@ -80,9 +81,9 @@ public final class MessageCollection implements Serializable, Comparable<Message
 	 * Returns the underlying XDI entity class to which this XDI message collection is bound.
 	 * @return An XDI entity class that represents the XDI message collection.
 	 */
-	public XdiEntityClass getXdiEntityClass() {
+	public XdiEntityCollection getXdiEntityClass() {
 
-		return this.xdiEntityClass;
+		return this.xdiEntityCollection;
 	}
 
 	/**
@@ -98,31 +99,43 @@ public final class MessageCollection implements Serializable, Comparable<Message
 	 * Returns the sender of the message collection.
 	 * @return The sender of the message collection.
 	 */
-	public XDI3Segment getSender() {
+	public ContextNode getSender() {
 
-		return this.getContextNode().getContextNode().getXri();
+		return this.getContextNode().getContextNode();
 	}
 
 	/**
-	 * Returns an existing XDI message in this XDI message collection, or creates a new one.
-	 * @param create Whether to create an XDI message if it does not exist.
-	 * @return The existing or newly created XDI message.
+	 * Returns the sender XRI of the message collection.
+	 * @return The sender XRI of the message collection.
 	 */
-	public Message getMessage(boolean create) {
+	public XDI3Segment getSenderXri() {
 
-		Iterator<Message> messages = this.getMessages();
-		if (messages.hasNext()) return messages.next();
+		return this.getSender().getXri();
+	}
 
-		if (create) {
+	/**
+	 * Creates a new XDI message in this XDI message collection.
+	 * @return The newly created XDI message.
+	 */
+	public Message createMessage() {
 
-			XdiEntityInstanceUnordered xdiEntityInstance = this.xdiEntityClass.setXdiInstanceUnordered(null);
-			xdiEntityInstance.getXdiEntitySingleton(XDIMessagingConstants.XRI_SS_DO, true);
+		XdiEntityMemberUnordered xdiEntityMember = this.xdiEntityCollection.setXdiMemberUnordered(null);
+		xdiEntityMember.getXdiEntitySingleton(XDIMessagingConstants.XRI_SS_DO, true);
 
-			return new Message(this, xdiEntityInstance);
-		} else {
+		return new Message(this, xdiEntityMember);
+	}
 
-			return null;
-		}
+	/**
+	 * Creates a new XDI message in this XDI message collection.
+	 * @param index Index in an ordered collection.
+	 * @return The newly created XDI message.
+	 */
+	public Message createMessage(long index) {
+
+		XdiEntityMemberOrdered xdiEntityMember = this.xdiEntityCollection.setXdiMemberOrdered(index);
+		xdiEntityMember.getXdiEntitySingleton(XDIMessagingConstants.XRI_SS_DO, true);
+
+		return new Message(this, xdiEntityMember);
 	}
 
 	/**
@@ -131,7 +144,7 @@ public final class MessageCollection implements Serializable, Comparable<Message
 	 */
 	public ReadOnlyIterator<Message> getMessages() {
 
-		return new MappingXdiEntityMessageIterator(this, this.getXdiEntityClass().getXdiInstances(true));
+		return new MappingXdiEntityMessageIterator(this, this.getXdiEntityClass().getXdiMembersDeref());
 	}
 
 	/**
@@ -164,7 +177,7 @@ public final class MessageCollection implements Serializable, Comparable<Message
 	/**
 	 * Returns the number of messages in the message collection.
 	 */
-	public int getMessageCount() {
+	public long getMessageCount() {
 
 		return new IteratorCounter(this.getMessages()).count();
 	}
@@ -172,7 +185,7 @@ public final class MessageCollection implements Serializable, Comparable<Message
 	/**
 	 * Returns the number of operations in all messages of the message envelope.
 	 */
-	public int getOperationCount() {
+	public long getOperationCount() {
 
 		return new IteratorCounter(this.getOperations()).count();
 	}

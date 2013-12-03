@@ -1,18 +1,26 @@
 package xdi2.messaging;
 
 import java.io.Serializable;
+import java.security.Key;
 import java.util.Date;
 import java.util.Iterator;
 
 import xdi2.core.ContextNode;
+import xdi2.core.Literal;
 import xdi2.core.Relation;
+import xdi2.core.constants.XDIAuthenticationConstants;
 import xdi2.core.constants.XDILinkContractConstants;
 import xdi2.core.constants.XDIPolicyConstants;
+import xdi2.core.features.dictionary.Dictionary;
 import xdi2.core.features.linkcontracts.policy.PolicyRoot;
+import xdi2.core.features.nodetypes.XdiAttributeSingleton;
 import xdi2.core.features.nodetypes.XdiEntity;
 import xdi2.core.features.nodetypes.XdiEntitySingleton;
-import xdi2.core.features.roots.XdiInnerRoot;
-import xdi2.core.features.roots.XdiLocalRoot;
+import xdi2.core.features.nodetypes.XdiInnerRoot;
+import xdi2.core.features.nodetypes.XdiLocalRoot;
+import xdi2.core.features.nodetypes.XdiValue;
+import xdi2.core.features.signatures.Signature;
+import xdi2.core.features.signatures.Signatures;
 import xdi2.core.features.timestamps.Timestamps;
 import xdi2.core.util.iterators.IteratorCounter;
 import xdi2.core.util.iterators.IteratorListMaker;
@@ -125,21 +133,30 @@ public final class Message implements Serializable, Comparable<Message> {
 	 * Returns the sender of the message's message collection.
 	 * @return The sender of the message's message collection.
 	 */
-	public XDI3Segment getSender() {
+	public ContextNode getSender() {
 
 		return this.getMessageCollection().getSender();
 	}
 
 	/**
-	 * Return the FROM address.
+	 * Returns the sender XRI of the message's message collection.
+	 * @return The sender XRI of the message's message collection.
 	 */
-	public XDI3Segment getFromAddress() {
+	public XDI3Segment getSenderXri() {
+
+		return this.getMessageCollection().getSenderXri();
+	}
+
+	/**
+	 * Return the FROM authority.
+	 */
+	public XDI3Segment getFromAuthority() {
 
 		for (Iterator<Relation> incomingRelations = this.getContextNode().getIncomingRelations(); incomingRelations.hasNext(); ) {
 
 			Relation incomingRelation = incomingRelations.next();
 
-			if (incomingRelation.getArcXri().equals(XDIMessagingConstants.XRI_S_FROM_ADDRESS)) {
+			if (incomingRelation.getArcXri().equals(XDIMessagingConstants.XRI_S_FROM_AUTHORITY)) {
 
 				return incomingRelation.getContextNode().getXri();
 			}
@@ -149,32 +166,31 @@ public final class Message implements Serializable, Comparable<Message> {
 	}
 
 	/**
-	 * Set the FROM address.
+	 * Set the FROM authority.
 	 */
-	public void setFromAddress(XDI3Segment fromAddress) {
+	public void setFromAuthority(XDI3Segment fromAuthority) {
 
-		ContextNode fromAddressContextNode = this.getMessageEnvelope().getGraph().findContextNode(fromAddress, true);
-
-		fromAddressContextNode.createRelation(XDIMessagingConstants.XRI_S_FROM_ADDRESS, this.getContextNode());
+		this.getMessageEnvelope().getGraph().setDeepRelation(fromAuthority, XDIMessagingConstants.XRI_S_FROM_AUTHORITY, this.getContextNode());
 	}
 
 	/**
-	 * Return the TO address of the message.
+	 * Return the TO authority of the message.
 	 */
-	public XDI3Segment getToAddress() {
+	public XDI3Segment getToAuthority() {
 
-		Relation toAddressRelation = this.getContextNode().getRelation(XDIMessagingConstants.XRI_S_TO_ADDRESS);
-		if (toAddressRelation == null) return null;
+		Relation toAuthorityRelation = this.getContextNode().getRelation(XDIMessagingConstants.XRI_S_TO_AUTHORITY);
+		if (toAuthorityRelation == null) return null;
 
-		return toAddressRelation.getTargetContextNodeXri();
+		return toAuthorityRelation.getTargetContextNodeXri();
 	}
 
 	/**
-	 * Set the TO address of the message.
+	 * Set the TO authority of the message.
 	 */
-	public void setToAddress(XDI3Segment toAddress) {
+	public void setToAuthority(XDI3Segment toAuthority) {
 
-		this.getContextNode().createRelation(XDIMessagingConstants.XRI_S_TO_ADDRESS, toAddress);
+		this.getContextNode().delRelations(XDIMessagingConstants.XRI_S_TO_AUTHORITY);
+		this.getContextNode().setRelation(XDIMessagingConstants.XRI_S_TO_AUTHORITY, toAuthority);
 	}
 
 	/**
@@ -211,8 +227,8 @@ public final class Message implements Serializable, Comparable<Message> {
 	 */
 	public void setLinkContractXri(XDI3Segment linkContractXri) {
 
-		this.getContextNode().deleteRelations(XDILinkContractConstants.XRI_S_DO);
-		this.getContextNode().createRelation(XDILinkContractConstants.XRI_S_DO, linkContractXri);
+		this.getContextNode().delRelations(XDILinkContractConstants.XRI_S_DO);
+		this.getContextNode().setRelation(XDILinkContractConstants.XRI_S_DO, linkContractXri);
 	}
 
 	/**
@@ -227,6 +243,111 @@ public final class Message implements Serializable, Comparable<Message> {
 
 		return PolicyRoot.fromXdiEntity(xdiEntitySingleton);
 	}
+
+	/*
+	 * Methods releated to message authentication
+	 */
+
+	/**
+	 * Set a secret token on the message.
+	 * @param secretToken The secret token to set.
+	 */
+	public void setSecretToken(String secretToken) {
+
+		if (secretToken != null) {
+
+			XdiAttributeSingleton xdiAttribute = XdiAttributeSingleton.fromContextNode(this.getContextNode().setDeepContextNode(XDIAuthenticationConstants.XRI_S_SECRET_TOKEN));
+			XdiValue xdiValue = xdiAttribute.getXdiValue(true);
+			xdiValue.getContextNode().setLiteral(secretToken);
+		} else {
+
+			XdiAttributeSingleton xdiAttribute = XdiAttributeSingleton.fromContextNode(this.getContextNode().getDeepContextNode(XDIAuthenticationConstants.XRI_S_SECRET_TOKEN));
+			XdiValue xdiValue = xdiAttribute == null ? null : xdiAttribute.getXdiValue(false);
+			if (xdiValue != null) xdiValue.getContextNode().delete();
+		}
+	}
+
+	/**
+	 * Returns the secret token from the message.
+	 * @return The secret token.
+	 */
+	public String getSecretToken() {
+
+		ContextNode contextNode = this.getContextNode().getDeepContextNode(XDIAuthenticationConstants.XRI_S_SECRET_TOKEN);
+		if (contextNode == null) return null;
+
+		XdiAttributeSingleton xdiAttribute = XdiAttributeSingleton.fromContextNode(contextNode);
+		if (xdiAttribute == null) return null;
+
+		XdiValue xdiValue = xdiAttribute.getXdiValue(false);
+		if (xdiValue == null) return null;
+
+		Literal literal = xdiValue.getContextNode().getLiteral();
+		if (literal == null) return null;
+
+		return literal.getLiteralDataString();
+	}
+
+	/**
+	 * Returns the signature from the message.
+	 * @return The signature.
+	 */
+	public Signature<? extends Key, ? extends Key> getSignature() {
+
+		return Signatures.getSignature(this.getContextNode());
+	}
+
+	/**
+	 * Sets a signature on the message.
+	 * @return The signature.
+	 */
+	public Signature<? extends Key, ? extends Key> setSignature(String digestAlgorithm, int digestLength, String keyAlgorithm, int keyLength) {
+
+		return Signatures.setSignature(this.getContextNode(), digestAlgorithm, digestLength, keyAlgorithm, keyLength);
+	}
+
+	/*
+	 * Methods related to message types
+	 */
+
+	public Iterator<XDI3Segment> getMessageTypes() {
+
+		return Dictionary.getContextNodeTypes(this.getContextNode());
+	}
+
+	public XDI3Segment getMessageType() {
+
+		return Dictionary.getContextNodeType(this.getContextNode());
+	}
+
+	public boolean isMessageType(XDI3Segment type) {
+
+		return Dictionary.isContextNodeType(this.getContextNode(), type);
+	}
+
+	public void setMessageType(XDI3Segment type) {
+
+		Dictionary.setContextNodeType(this.getContextNode(), type);
+	}
+
+	public void delMessageType(XDI3Segment type) {
+
+		Dictionary.delContextNodeType(this.getContextNode(), type);
+	}
+
+	public void delMessageTypes() {
+
+		Dictionary.delContextNodeTypes(this.getContextNode());
+	}
+
+	public void replaceMessageType(XDI3Segment type) {
+
+		Dictionary.replaceContextNodeType(this.getContextNode(), type);
+	}
+
+	/*
+	 * Methods related to operations
+	 */
 
 	/**
 	 * Returns the XDI entity with XDI operations.
@@ -254,7 +375,7 @@ public final class Message implements Serializable, Comparable<Message> {
 	 */
 	public Operation createOperation(XDI3Segment operationXri, XDI3Segment targetAddress) {
 
-		Relation relation = this.getOperationsContextNode().createRelation(operationXri, targetAddress);
+		Relation relation = this.getOperationsContextNode().setRelation(operationXri, targetAddress);
 
 		return Operation.fromMessageAndRelation(this, relation);
 	}
@@ -268,7 +389,7 @@ public final class Message implements Serializable, Comparable<Message> {
 	public Operation createOperation(XDI3Segment operationXri, Iterator<XDI3Statement> targetStatements) {
 
 		XdiInnerRoot innerRoot = XdiLocalRoot.findLocalRoot(this.getContextNode().getGraph()).findInnerRoot(this.getOperationsContextNode().getXri(), operationXri, true);
-		while (targetStatements.hasNext()) innerRoot.createRelativeStatement(targetStatements.next());
+		while (targetStatements.hasNext()) innerRoot.setRelativeStatement(targetStatements.next());
 
 		return Operation.fromMessageAndRelation(this, innerRoot.getPredicateRelation());
 	}
@@ -291,7 +412,7 @@ public final class Message implements Serializable, Comparable<Message> {
 	 */
 	public GetOperation createGetOperation(XDI3Segment targetAddress) {
 
-		Relation relation = this.getOperationsContextNode().createRelation(XDIMessagingConstants.XRI_S_GET, targetAddress);
+		Relation relation = this.getOperationsContextNode().setRelation(XDIMessagingConstants.XRI_S_GET, targetAddress);
 
 		return GetOperation.fromMessageAndRelation(this, relation);
 	}
@@ -304,7 +425,7 @@ public final class Message implements Serializable, Comparable<Message> {
 	public GetOperation createGetOperation(Iterator<XDI3Statement> targetStatements) {
 
 		XdiInnerRoot innerRoot = XdiLocalRoot.findLocalRoot(this.getContextNode().getGraph()).findInnerRoot(this.getOperationsContextNode().getXri(), XDIMessagingConstants.XRI_S_GET, true);
-		while (targetStatements.hasNext()) innerRoot.createRelativeStatement(targetStatements.next());
+		while (targetStatements.hasNext()) innerRoot.setRelativeStatement(targetStatements.next());
 
 		return GetOperation.fromMessageAndRelation(this, innerRoot.getPredicateRelation());
 	}
@@ -320,83 +441,13 @@ public final class Message implements Serializable, Comparable<Message> {
 	}
 
 	/**
-	 * Creates a new $add operation and adds it to this XDI message.
-	 * @param targetAddress The target address to which the operation applies.
-	 * @return The newly created $add operation.
-	 */
-	public AddOperation createAddOperation(XDI3Segment targetAddress) {
-
-		Relation relation = this.getOperationsContextNode().createRelation(XDIMessagingConstants.XRI_S_ADD, targetAddress);
-
-		return AddOperation.fromMessageAndRelation(this, relation);
-	}
-
-	/**
-	 * Creates a new $add operation and adds it to this XDI message.
-	 * @param targetStatements The target statements to which the operation applies.
-	 * @return The newly created $add operation.
-	 */
-	public AddOperation createAddOperation(Iterator<XDI3Statement> targetStatements) {
-
-		XdiInnerRoot innerRoot = XdiLocalRoot.findLocalRoot(this.getContextNode().getGraph()).findInnerRoot(this.getOperationsContextNode().getXri(), XDIMessagingConstants.XRI_S_ADD, true);
-		while (targetStatements.hasNext()) innerRoot.createRelativeStatement(targetStatements.next());
-
-		return AddOperation.fromMessageAndRelation(this, innerRoot.getPredicateRelation());
-	}
-
-	/**
-	 * Creates a new $add operation and adds it to this XDI message.
-	 * @param targetStatement The target statement to which the operation applies.
-	 * @return The newly created $add operation.
-	 */
-	public AddOperation createAddOperation(XDI3Statement targetStatement) {
-
-		return this.createAddOperation(new SingleItemIterator<XDI3Statement> (targetStatement));
-	}
-
-	/**
-	 * Creates a new $mod operation and adds it to this XDI message.
-	 * @param targetAddress The target address to which the operation applies.
-	 * @return The newly created $mod operation.
-	 */
-	public ModOperation createModOperation(XDI3Segment targetAddress) {
-
-		Relation relation = this.getOperationsContextNode().createRelation(XDIMessagingConstants.XRI_S_MOD, targetAddress);
-
-		return ModOperation.fromMessageAndRelation(this, relation);
-	}
-
-	/**
-	 * Creates a new $mod operation and adds it to this XDI message.
-	 * @param targetStatements The target statements to which the operation applies.
-	 * @return The newly created $mod operation.
-	 */
-	public ModOperation createModOperation(Iterator<XDI3Statement> targetStatements) {
-
-		XdiInnerRoot innerRoot = XdiLocalRoot.findLocalRoot(this.getContextNode().getGraph()).findInnerRoot(this.getOperationsContextNode().getXri(), XDIMessagingConstants.XRI_S_MOD, true);
-		while (targetStatements.hasNext()) innerRoot.createRelativeStatement(targetStatements.next());
-
-		return ModOperation.fromMessageAndRelation(this, innerRoot.getPredicateRelation());
-	}
-
-	/**
-	 * Creates a new $mod operation and adds it to this XDI message.
-	 * @param targetStatement The target statement to which the operation applies.
-	 * @return The newly created $mod operation.
-	 */
-	public ModOperation createModOperation(XDI3Statement targetStatement) {
-
-		return this.createModOperation(new SingleItemIterator<XDI3Statement> (targetStatement));
-	}
-
-	/**
 	 * Creates a new $set operation and adds it to this XDI message.
 	 * @param targetAddress The target address to which the operation applies.
 	 * @return The newly created $set operation.
 	 */
 	public SetOperation createSetOperation(XDI3Segment targetAddress) {
 
-		Relation relation = this.getOperationsContextNode().createRelation(XDIMessagingConstants.XRI_S_SET, targetAddress);
+		Relation relation = this.getOperationsContextNode().setRelation(XDIMessagingConstants.XRI_S_SET, targetAddress);
 
 		return SetOperation.fromMessageAndRelation(this, relation);
 	}
@@ -409,7 +460,7 @@ public final class Message implements Serializable, Comparable<Message> {
 	public SetOperation createSetOperation(Iterator<XDI3Statement> targetStatements) {
 
 		XdiInnerRoot innerRoot = XdiLocalRoot.findLocalRoot(this.getContextNode().getGraph()).findInnerRoot(this.getOperationsContextNode().getXri(), XDIMessagingConstants.XRI_S_SET, true);
-		while (targetStatements.hasNext()) innerRoot.createRelativeStatement(targetStatements.next());
+		while (targetStatements.hasNext()) innerRoot.setRelativeStatement(targetStatements.next());
 
 		return SetOperation.fromMessageAndRelation(this, innerRoot.getPredicateRelation());
 	}
@@ -431,7 +482,7 @@ public final class Message implements Serializable, Comparable<Message> {
 	 */
 	public DelOperation createDelOperation(XDI3Segment targetAddress) {
 
-		Relation relation = this.getOperationsContextNode().createRelation(XDIMessagingConstants.XRI_S_DEL, targetAddress);
+		Relation relation = this.getOperationsContextNode().setRelation(XDIMessagingConstants.XRI_S_DEL, targetAddress);
 
 		return DelOperation.fromMessageAndRelation(this, relation);
 	}
@@ -444,7 +495,7 @@ public final class Message implements Serializable, Comparable<Message> {
 	public DelOperation createDelOperation(Iterator<XDI3Statement> targetStatements) {
 
 		XdiInnerRoot innerRoot = XdiLocalRoot.findLocalRoot(this.getContextNode().getGraph()).findInnerRoot(this.getOperationsContextNode().getXri(), XDIMessagingConstants.XRI_S_DEL, true);
-		while (targetStatements.hasNext()) innerRoot.createRelativeStatement(targetStatements.next());
+		while (targetStatements.hasNext()) innerRoot.setRelativeStatement(targetStatements.next());
 
 		return DelOperation.fromMessageAndRelation(this, innerRoot.getPredicateRelation());
 	}
@@ -466,7 +517,7 @@ public final class Message implements Serializable, Comparable<Message> {
 	 */
 	public DoOperation createDoOperation(XDI3Segment targetAddress) {
 
-		Relation relation = this.getOperationsContextNode().createRelation(XDIMessagingConstants.XRI_S_DO, targetAddress);
+		Relation relation = this.getOperationsContextNode().setRelation(XDIMessagingConstants.XRI_S_DO, targetAddress);
 
 		return DoOperation.fromMessageAndRelation(this, relation);
 	}
@@ -479,7 +530,7 @@ public final class Message implements Serializable, Comparable<Message> {
 	public DoOperation createDoOperation(Iterator<XDI3Statement> targetStatements) {
 
 		XdiInnerRoot innerRoot = XdiLocalRoot.findLocalRoot(this.getContextNode().getGraph()).findInnerRoot(this.getOperationsContextNode().getXri(), XDIMessagingConstants.XRI_S_DO, true);
-		while (targetStatements.hasNext()) innerRoot.createRelativeStatement(targetStatements.next());
+		while (targetStatements.hasNext()) innerRoot.setRelativeStatement(targetStatements.next());
 
 		return DoOperation.fromMessageAndRelation(this, innerRoot.getPredicateRelation());
 	}
@@ -534,32 +585,6 @@ public final class Message implements Serializable, Comparable<Message> {
 	}
 
 	/**
-	 * Returns all XDI $add operations in this XDI message.
-	 * @return An iterator over all XDI $add operations.
-	 */
-	public ReadOnlyIterator<AddOperation> getAddOperations() {
-
-		// get all relations that are valid XDI $add operations
-
-		Iterator<Relation> relations = this.getOperationsContextNode().getRelations(XDIMessagingConstants.XRI_S_ADD);
-
-		return new MappingRelationAddOperationIterator(this, relations);
-	}
-
-	/**
-	 * Returns all XDI $mod operations in this XDI message.
-	 * @return An iterator over all XDI $mod operations.
-	 */
-	public ReadOnlyIterator<ModOperation> getModOperations() {
-
-		// get all relations that are valid XDI $mod operations
-
-		Iterator<Relation> relations = this.getOperationsContextNode().getRelations(XDIMessagingConstants.XRI_S_MOD);
-
-		return new MappingRelationModOperationIterator(this, relations);
-	}
-
-	/**
 	 * Returns all XDI $set operations in this XDI message.
 	 * @return An iterator over all XDI $set operations.
 	 */
@@ -605,14 +630,22 @@ public final class Message implements Serializable, Comparable<Message> {
 
 		for (Operation operation : new IteratorListMaker<Operation> (this.getOperations()).list()) {
 
-			operation.getRelation().delete();
+			XdiInnerRoot innerRoot = XdiInnerRoot.fromContextNode(operation.getRelation().follow());
+
+			if (innerRoot != null) {
+
+				innerRoot.getContextNode().delete();
+			} else {
+
+				operation.getRelation().delete();
+			}
 		}
 	}
 
 	/**
 	 * Returns the number of XDI operations in this XDI message.
 	 */
-	public int getOperationCount() {
+	public long getOperationCount() {
 
 		Iterator<Operation> iterator = this.getOperations();
 
@@ -687,36 +720,6 @@ public final class Message implements Serializable, Comparable<Message> {
 				public GetOperation map(Relation relation) {
 
 					return GetOperation.fromMessageAndRelation(message, relation);
-				}
-			});
-		}
-	}
-
-	public static class MappingRelationAddOperationIterator extends NotNullIterator<AddOperation> {
-
-		public MappingRelationAddOperationIterator(final Message message, Iterator<Relation> relations) {
-
-			super(new MappingIterator<Relation, AddOperation> (relations) {
-
-				@Override
-				public AddOperation map(Relation relation) {
-
-					return AddOperation.fromMessageAndRelation(message, relation);
-				}
-			});
-		}
-	}
-
-	public static class MappingRelationModOperationIterator extends NotNullIterator<ModOperation> {
-
-		public MappingRelationModOperationIterator(final Message message, Iterator<Relation> relations) {
-
-			super(new MappingIterator<Relation, ModOperation> (relations) {
-
-				@Override
-				public ModOperation map(Relation relation) {
-
-					return ModOperation.fromMessageAndRelation(message, relation);
 				}
 			});
 		}

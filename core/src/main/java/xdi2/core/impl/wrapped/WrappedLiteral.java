@@ -10,21 +10,21 @@ public class WrappedLiteral extends AbstractLiteral implements Literal {
 
 	private MemoryLiteral memoryLiteral;
 
-	WrappedLiteral(WrappedGraph graph, WrappedContextNode contextNode, MemoryLiteral memoryLiteral) {
+	WrappedLiteral(WrappedContextNode contextNode, MemoryLiteral memoryLiteral) {
 
-		super(graph, contextNode);
+		super(contextNode);
 
 		this.memoryLiteral = memoryLiteral;
 	}
 
 	@Override
-	public String getLiteralData() {
+	public Object getLiteralData() {
 
 		return this.memoryLiteral.getLiteralData();
 	}
 
 	@Override
-	public void setLiteralData(String literalData) {
+	public void setLiteralData(Object literalData) {
 
 		this.memoryLiteral.setLiteralData(literalData);
 	}

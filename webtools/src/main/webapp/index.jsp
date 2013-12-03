@@ -15,7 +15,7 @@
 	<div class="header">
 	<span id="appname">XDI2</span>
 	&nbsp;&nbsp;&nbsp;&nbsp;
-	See Github for the <a href="http://github.com/peacekeeper/xdi2">code</a> and <a href="https://github.com/peacekeeper/xdi2/wiki">wiki</a>.
+	See Github for the <a href="http://github.com/projectdanube/xdi2">code</a> and <a href="https://github.com/projectdanube/xdi2/wiki">wiki</a>.
 	</div>
 	
 	<hr noshade style="clear:both">
@@ -32,10 +32,8 @@
 	<a href="XDIConverter">XDI Converter</a>&nbsp;&nbsp;
 	<a href="XDIMessenger">XDI Messenger</a>&nbsp;&nbsp;
 	<a href="XDILocalMessenger">XDI Local Messenger</a>&nbsp;&nbsp;
-	XDI Querier&nbsp;&nbsp;
-	XDI Setter&nbsp;&nbsp;
-	XDI Signer&nbsp;&nbsp;
-	XDI Addresser&nbsp;&nbsp;
+	<a href="XDISigner">XDI Signer</a>&nbsp;&nbsp;
+	<a href="XDIDiscoverer">XDI Discoverer</a>&nbsp;&nbsp;
 	<a href="XDIGrapher">XDI Grapher</a>
 	</p>
 

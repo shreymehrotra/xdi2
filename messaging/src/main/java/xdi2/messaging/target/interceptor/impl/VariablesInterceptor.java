@@ -10,14 +10,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import xdi2.core.constants.XDIDictionaryConstants;
-import xdi2.core.util.StatementUtil;
+import xdi2.core.features.nodetypes.XdiAbstractMemberUnordered;
 import xdi2.core.util.VariableUtil;
-import xdi2.core.util.XDI3Util;
-import xdi2.core.xri3.XDI3Constants;
 import xdi2.core.xri3.XDI3Segment;
 import xdi2.core.xri3.XDI3Statement;
 import xdi2.core.xri3.XDI3SubSegment;
-import xdi2.messaging.AddOperation;
 import xdi2.messaging.MessageEnvelope;
 import xdi2.messaging.MessageResult;
 import xdi2.messaging.Operation;
@@ -27,7 +24,7 @@ import xdi2.messaging.target.ExecutionContext;
 import xdi2.messaging.target.Prototype;
 import xdi2.messaging.target.interceptor.AbstractInterceptor;
 import xdi2.messaging.target.interceptor.MessageEnvelopeInterceptor;
-import xdi2.messaging.target.interceptor.ResultInterceptor;
+import xdi2.messaging.target.interceptor.MessageResultInterceptor;
 import xdi2.messaging.target.interceptor.TargetInterceptor;
 
 /**
@@ -35,7 +32,7 @@ import xdi2.messaging.target.interceptor.TargetInterceptor;
  * 
  * @author markus
  */
-public class VariablesInterceptor extends AbstractInterceptor implements MessageEnvelopeInterceptor, TargetInterceptor, ResultInterceptor, Prototype<VariablesInterceptor> {
+public class VariablesInterceptor extends AbstractInterceptor implements MessageEnvelopeInterceptor, TargetInterceptor, MessageResultInterceptor, Prototype<VariablesInterceptor> {
 
 	private static final Logger log = LoggerFactory.getLogger(VariablesInterceptor.class);
 
@@ -81,7 +78,7 @@ public class VariablesInterceptor extends AbstractInterceptor implements Message
 	@Override
 	public XDI3Statement targetStatement(XDI3Statement targetStatement, Operation operation, MessageResult messageResult, ExecutionContext executionContext) throws Xdi2MessagingException {
 
-		if (! (operation instanceof AddOperation) && ! (operation instanceof SetOperation)) return targetStatement;
+		if (! (operation instanceof SetOperation)) return targetStatement;
 
 		XDI3Segment substitutedTargetSubject = substituteSegment(targetStatement.getSubject(), executionContext);
 		XDI3Segment substitutedTargetPredicate = substituteSegment(targetStatement.getPredicate(), executionContext);
@@ -89,19 +86,19 @@ public class VariablesInterceptor extends AbstractInterceptor implements Message
 
 		if (substitutedTargetSubject == targetStatement.getSubject() && substitutedTargetPredicate == targetStatement.getPredicate() && substitutedTargetObject == targetStatement.getObject()) return targetStatement;
 
-		return StatementUtil.fromComponents(substitutedTargetSubject, substitutedTargetPredicate, substitutedTargetObject);
+		return XDI3Statement.fromComponents(substitutedTargetSubject, substitutedTargetPredicate, substitutedTargetObject);
 	}
 
 	@Override
 	public XDI3Segment targetAddress(XDI3Segment targetAddress, Operation operation, MessageResult messageResult, ExecutionContext executionContext) throws Xdi2MessagingException {
 
-		if (! (operation instanceof AddOperation) && ! (operation instanceof SetOperation)) return targetAddress;
+		if (! (operation instanceof SetOperation)) return targetAddress;
 
 		return substituteSegment(targetAddress, executionContext);
 	}
 
 	/*
-	 * ResultInterceptor
+	 * MessageResultInterceptor
 	 */
 
 	@Override
@@ -115,9 +112,9 @@ public class VariablesInterceptor extends AbstractInterceptor implements Message
 			XDI3Segment predicate = XDIDictionaryConstants.XRI_S_IS;
 			XDI3Segment object = XDI3Segment.create(entry.getValue().toString());
 
-			XDI3Statement statement = StatementUtil.fromComponents(subject, predicate, object);
+			XDI3Statement statement = XDI3Statement.fromComponents(subject, predicate, object);
 
-			messageResult.getGraph().createStatement(statement);
+			messageResult.getGraph().setStatement(statement);
 		}
 	}
 
@@ -173,6 +170,7 @@ public class VariablesInterceptor extends AbstractInterceptor implements Message
 	private static XDI3SubSegment substituteSubSegment(XDI3SubSegment subSegment, ExecutionContext executionContext) {
 
 		if (! VariableUtil.isVariable(subSegment)) return null;
+		if (! subSegment.getXRef().isEmpty()) return null;
 
 		// substitute the subsegment
 
@@ -180,7 +178,7 @@ public class VariablesInterceptor extends AbstractInterceptor implements Message
 
 		if (newSubSegment == null) {
 
-			newSubSegment = XDI3Util.randomUuidSubSegment(XDI3Constants.CS_BANG);
+			newSubSegment = XdiAbstractMemberUnordered.createRandomUuidArcXri(false);
 			putVariable(executionContext, subSegment, newSubSegment);
 		}
 

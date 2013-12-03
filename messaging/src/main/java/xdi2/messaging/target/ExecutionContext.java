@@ -6,6 +6,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import xdi2.core.xri3.XDI3Segment;
+import xdi2.core.xri3.XDI3Statement;
 import xdi2.messaging.Message;
 import xdi2.messaging.MessageEnvelope;
 import xdi2.messaging.Operation;
@@ -14,7 +16,7 @@ import xdi2.messaging.target.contributor.Contributor;
 import xdi2.messaging.target.interceptor.Interceptor;
 
 /**
- * Messaging tarets as well as contributors and interceptors can use the ExecutionContext
+ * Messaging targets as well as contributors and interceptors can use the ExecutionContext
  * to store and share state. The ExecutionContext is created before a MessageEnvelope is
  * executed, and is deleted when execution of the MessageEnvelope is complete. It contains
  * the current position in the execution process, and attributes associated with various
@@ -25,17 +27,22 @@ public final class ExecutionContext implements Serializable {
 	private static final long serialVersionUID = 3238581605986543950L;
 
 	/**
-	 * This map is preserved during the entire execution of a MessageEnvelope.
+	 * This map is never reset.
+	 */
+	private Map<String, Object> executionContextAttributes;
+	
+	/**
+	 * This map is reset before executing a MessageEnvelope.
 	 */
 	private Map<String, Object> messageEnvelopeAttributes;
 
 	/**
-	 * This map is emptied before a Message in a MessageEnvelope is executed.
+	 * This map is reset before executing a Message in a MessageEnvelope is executed.
 	 */
 	private Map<String, Object> messageAttributes;
 
 	/**
-	 * This map is emptied before an Operation in a Message is executed.
+	 * This map is reset before executing an Operation in a Message is executed.
 	 */
 	private Map<String, Object> operationAttributes;
 
@@ -53,6 +60,7 @@ public final class ExecutionContext implements Serializable {
 
 	public ExecutionContext() { 
 
+		this.executionContextAttributes = new HashMap<String, Object> ();
 		this.messageEnvelopeAttributes = new HashMap<String, Object> ();
 		this.messageAttributes = new HashMap<String, Object> ();
 		this.operationAttributes = new HashMap<String, Object> ();
@@ -67,6 +75,34 @@ public final class ExecutionContext implements Serializable {
 	 * Attributes
 	 */
 
+	public Object getExecutionContextAttribute(String key) {
+
+		return this.executionContextAttributes.get(key);
+	}
+
+	public void putExecutionContextAttribute(String key, Object value) {
+
+		if (value == null) 
+			this.executionContextAttributes.remove(key);
+		else
+			this.executionContextAttributes.put(key, value);
+	}
+
+	public Map<String, Object> getExecutionContextAttributes() {
+
+		return this.executionContextAttributes;
+	}
+
+	public void setExecutionContextAttributes(Map<String, Object> executionContextAttributes) {
+
+		this.executionContextAttributes = executionContextAttributes;
+	}
+
+	public void resetExecutionContextAttributes() {
+
+		this.executionContextAttributes = new HashMap<String, Object> ();
+	}
+
 	public Object getMessageEnvelopeAttribute(String key) {
 
 		return this.messageEnvelopeAttributes.get(key);
@@ -80,9 +116,19 @@ public final class ExecutionContext implements Serializable {
 			this.messageEnvelopeAttributes.put(key, value);
 	}
 
-	public void clearMessageEnvelopeAttributes() {
+	public Map<String, Object> getMessageEnvelopeAttributes() {
 
-		this.messageEnvelopeAttributes.clear();
+		return this.messageEnvelopeAttributes;
+	}
+
+	public void setMessageEnvelopeAttributes(Map<String, Object> messageEnvelopeAttributes) {
+
+		this.messageEnvelopeAttributes = messageEnvelopeAttributes;
+	}
+
+	public void resetMessageEnvelopeAttributes() {
+
+		this.messageEnvelopeAttributes = new HashMap<String, Object> ();
 	}
 
 	public Object getMessageAttribute(String key) {
@@ -98,9 +144,19 @@ public final class ExecutionContext implements Serializable {
 			this.messageAttributes.put(key, value);
 	}
 
-	public void clearMessageAttributes() {
+	public Map<String, Object> getMessageAttributes() {
 
-		this.messageAttributes.clear();
+		return this.messageAttributes;
+	}
+
+	public void setMessageAttributes(Map<String, Object> messageAttributes) {
+
+		this.messageAttributes = messageAttributes;
+	}
+
+	public void resetMessageAttributes() {
+
+		this.messageAttributes = new HashMap<String, Object> ();
 	}
 
 	public Object getOperationAttribute(String key) {
@@ -116,9 +172,19 @@ public final class ExecutionContext implements Serializable {
 			this.operationAttributes.put(key, value);
 	}
 
-	public void clearOperationAttributes() {
+	public Map<String, Object> getOperationAttributes() {
 
-		this.operationAttributes.clear();
+		return this.operationAttributes;
+	}
+
+	public void setOperationAttributes(Map<String, Object> operationAttributes) {
+
+		this.operationAttributes = operationAttributes;
+	}
+
+	public void resetOperationAttributes() {
+
+		this.operationAttributes = new HashMap<String, Object> ();
 	}
 
 	/*
@@ -131,12 +197,10 @@ public final class ExecutionContext implements Serializable {
 	}
 
 	public Xdi2MessagingException processException(Exception ex) {
-		
-		if (this.ex != null) return this.ex;
-		
+
 		if (! (ex instanceof Xdi2MessagingException)) {
 
-			ex = new Xdi2MessagingException(ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage(), ex, null);
+			ex = new Xdi2MessagingException(ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage(), ex, this);
 		}
 
 		this.ex = (Xdi2MessagingException) ex;
@@ -169,6 +233,16 @@ public final class ExecutionContext implements Serializable {
 		this.pushExecutionPosition(operation, comment);
 	}
 
+	public void pushTargetAddress(XDI3Segment targetAddress, String comment) {
+
+		this.pushExecutionPosition(targetAddress, comment);
+	}
+
+	public void pushTargetStatement(XDI3Statement targetStatement, String comment) {
+
+		this.pushExecutionPosition(targetStatement, comment);
+	}
+
 	public void pushInterceptor(Interceptor interceptor, String comment) {
 
 		this.pushExecutionPosition(interceptor, comment);
@@ -197,6 +271,16 @@ public final class ExecutionContext implements Serializable {
 	public void popOperation() {
 
 		this.popExecutionPosition(Operation.class);
+	}
+
+	public void popTargetAddress() {
+
+		this.popExecutionPosition(XDI3Segment.class);
+	}
+
+	public void popTargetStatement() {
+
+		this.popExecutionPosition(XDI3Statement.class);
 	}
 
 	public void popInterceptor() {
@@ -233,6 +317,20 @@ public final class ExecutionContext implements Serializable {
 	public Operation getCurrentOperation() {
 
 		ExecutionPosition<Operation> executionPosition = this.findExecutionPosition(this.currentExecutionPosition, Operation.class);
+
+		return executionPosition == null ? null : executionPosition.executionObject;
+	}
+
+	public XDI3Segment getCurrentTargetAddress() {
+
+		ExecutionPosition<XDI3Segment> executionPosition = this.findExecutionPosition(this.currentExecutionPosition, XDI3Segment.class);
+
+		return executionPosition == null ? null : executionPosition.executionObject;
+	}
+
+	public XDI3Statement getCurrentTargetStatement() {
+
+		ExecutionPosition<XDI3Statement> executionPosition = this.findExecutionPosition(this.currentExecutionPosition, XDI3Statement.class);
 
 		return executionPosition == null ? null : executionPosition.executionObject;
 	}
@@ -275,6 +373,20 @@ public final class ExecutionContext implements Serializable {
 	public Operation getExceptionOperation() {
 
 		ExecutionPosition<Operation> executionPosition = this.findExecutionPosition(this.exceptionExecutionPosition, Operation.class);
+
+		return executionPosition == null ? null : executionPosition.executionObject;
+	}
+
+	public XDI3Segment getExceptionTargetAddress() {
+
+		ExecutionPosition<XDI3Segment> executionPosition = this.findExecutionPosition(this.exceptionExecutionPosition, XDI3Segment.class);
+
+		return executionPosition == null ? null : executionPosition.executionObject;
+	}
+
+	public XDI3Statement getExceptionTargetStatement() {
+
+		ExecutionPosition<XDI3Statement> executionPosition = this.findExecutionPosition(this.exceptionExecutionPosition, XDI3Statement.class);
 
 		return executionPosition == null ? null : executionPosition.executionObject;
 	}
@@ -355,7 +467,7 @@ public final class ExecutionContext implements Serializable {
 		buffer.append("\n");
 		for (int i=0; i<depth; i++) buffer.append("  ");
 		buffer.append(parentExecutionPosition.toString());
-		
+
 		if (parentExecutionPosition == this.currentExecutionPosition) buffer.append(" <-- (CURRENT)");
 		if (parentExecutionPosition == this.exceptionExecutionPosition) buffer.append(" <-- (EXCEPTION)");
 

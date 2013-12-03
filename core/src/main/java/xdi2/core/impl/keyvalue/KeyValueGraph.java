@@ -15,16 +15,16 @@ public class KeyValueGraph extends AbstractGraph implements Graph {
 
 	private final KeyValueContextNode rootContextNode;
 
-	KeyValueGraph(AbstractKeyValueGraphFactory graphFactory, KeyValueStore keyValueStore, boolean supportGetContextNodes, boolean supportGetRelations) {
+	KeyValueGraph(AbstractKeyValueGraphFactory graphFactory, String identifier, KeyValueStore keyValueStore, boolean supportGetContextNodes, boolean supportGetRelations) {
 
-		super(graphFactory);
+		super(graphFactory, identifier);
 
 		this.keyValueStore = keyValueStore;
 
 		this.supportGetContextNodes = supportGetContextNodes;
 		this.supportGetRelations = supportGetRelations;
 
-		this.rootContextNode = new KeyValueContextNode(this, null, keyValueStore, "()", null);
+		this.rootContextNode = new KeyValueContextNode(this, null, keyValueStore, "", null);
 	}
 
 	@Override

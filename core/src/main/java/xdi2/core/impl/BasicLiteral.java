@@ -1,35 +1,34 @@
 package xdi2.core.impl;
 
 import xdi2.core.ContextNode;
-import xdi2.core.Graph;
 import xdi2.core.Literal;
 
 public class BasicLiteral extends AbstractLiteral implements Literal {
 
 	private static final long serialVersionUID = 3101871056623742994L;
 
-	private String literalData;
+	private Object literalData;
 
-	public BasicLiteral(Graph graph, ContextNode contextNode, String literalData) {
+	public BasicLiteral(ContextNode contextNode, String literalData) {
 
-		super(graph, contextNode);
+		super(contextNode);
 
 		this.literalData = literalData;
 	}
 
 	public BasicLiteral(String literalData) {
 
-		this(null, null, literalData);
+		this(null, literalData);
 	}
 
 	@Override
-	public String getLiteralData() {
+	public Object getLiteralData() {
 
 		return this.literalData;
 	}
 
 	@Override
-	public void setLiteralData(String literalData) {
+	public void setLiteralData(Object literalData) {
 
 		this.literalData = literalData;
 	}

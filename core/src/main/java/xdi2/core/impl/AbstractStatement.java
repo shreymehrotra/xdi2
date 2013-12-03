@@ -6,9 +6,7 @@ import xdi2.core.Literal;
 import xdi2.core.Relation;
 import xdi2.core.Statement;
 import xdi2.core.constants.XDIConstants;
-import xdi2.core.features.roots.XdiInnerRoot;
-import xdi2.core.util.StatementUtil;
-import xdi2.core.util.XDI3Util;
+import xdi2.core.features.nodetypes.XdiInnerRoot;
 import xdi2.core.xri3.XDI3Segment;
 import xdi2.core.xri3.XDI3Statement;
 
@@ -39,9 +37,8 @@ public abstract class AbstractStatement implements Statement {
 			Relation relation = ((RelationStatement) this).getRelation();
 			if (relation == null) return false;
 
-			if (! XdiInnerRoot.isValid(relation.follow())) return false;
-
-			if (! relation.follow().isEmpty()) return true;
+			XdiInnerRoot innerRoot = XdiInnerRoot.fromContextNode(relation.follow());
+			if (innerRoot != null && relation.equals(innerRoot.getPredicateRelation()) && ! innerRoot.getContextNode().isEmpty()) return true;
 		}
 
 		return false;
@@ -55,7 +52,18 @@ public abstract class AbstractStatement implements Statement {
 	@Override
 	public XDI3Statement getXri() {
 
-		return XDI3Statement.create(this.toString());
+		if (this instanceof ContextNodeStatement) {
+
+			return XDI3Statement.fromContextNodeComponents(((ContextNodeStatement) this).getSubject(), ((ContextNodeStatement) this).getObject());
+		} else if (this instanceof RelationStatement) {
+
+			return XDI3Statement.fromRelationComponents(((RelationStatement) this).getSubject(), ((RelationStatement) this).getPredicate(), ((RelationStatement) this).getObject());
+		} else if (this instanceof LiteralStatement) {
+
+			return XDI3Statement.fromLiteralComponents(((LiteralStatement) this).getSubject(), ((LiteralStatement) this).getObject());
+		}
+
+		throw new IllegalStateException("Invalid statement: " + this.getClass().getSimpleName());
 	}
 
 	/*
@@ -65,15 +73,7 @@ public abstract class AbstractStatement implements Statement {
 	@Override
 	public String toString() {
 
-		StringBuilder builder = new StringBuilder();
-
-		builder.append(this.getSubject());
-		builder.append("/");
-		builder.append(this.getPredicate());
-		builder.append("/");
-		builder.append(StatementUtil.statementObjectToString(this.getObject()));
-
-		return builder.toString();
+		return this.getXri().toString();
 	}
 
 	@Override
@@ -139,18 +139,6 @@ public abstract class AbstractStatement implements Statement {
 		private static final long serialVersionUID = -7006808512493295364L;
 
 		@Override
-		public XDI3Segment getContextNodeXri() {
-
-			if (XDIConstants.XRI_S_ROOT.equals(this.getSubject())) {
-
-				return (XDI3Segment) this.getObject();
-			} else {
-
-				return XDI3Util.expandXri(this.getSubject(), (XDI3Segment) this.getObject());
-			}
-		}
-
-		@Override
 		public final XDI3Segment getPredicate() {
 
 			return XDIConstants.XRI_S_CONTEXT;
@@ -168,12 +156,6 @@ public abstract class AbstractStatement implements Statement {
 		private static final long serialVersionUID = -2393268622327844933L;
 
 		@Override
-		public XDI3Segment getContextNodeXri() {
-
-			return this.getSubject();
-		}
-
-		@Override
 		public Relation getRelation() {
 
 			return null;
@@ -183,12 +165,6 @@ public abstract class AbstractStatement implements Statement {
 	public static abstract class AbstractLiteralStatement extends AbstractStatement implements LiteralStatement {
 
 		private static final long serialVersionUID = -7876412291137305476L;
-
-		@Override
-		public XDI3Segment getContextNodeXri() {
-
-			return this.getSubject();
-		}
 
 		@Override
 		public final XDI3Segment getPredicate() {

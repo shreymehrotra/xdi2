@@ -13,7 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import xdi2.core.constants.XDIConstants;
-import xdi2.core.xri3.XDI3Constants;
+import xdi2.core.impl.AbstractLiteral;
 import xdi2.core.xri3.XDI3Parser;
 import xdi2.core.xri3.XDI3Segment;
 import xdi2.core.xri3.XDI3Statement;
@@ -35,7 +35,7 @@ public class XDI3ParserManual extends XDI3Parser {
 
 		String temp = stripXs(string);
 
-		String[] parts = temp.split("/");
+		String[] parts = temp.split("/", -1);
 		if (parts.length != 3) throw new ParserException("Invalid statement: " + string + " (wrong number of segments: " + parts.length + ")");
 		int split0 = parts[0].length();
 		int split1 = parts[1].length();
@@ -46,17 +46,23 @@ public class XDI3ParserManual extends XDI3Parser {
 
 		XDI3Segment subject = this.parseXDI3Segment(subjectString);
 		XDI3Segment predicate = this.parseXDI3Segment(predicateString);
-		Object object;
 
 		if (XDIConstants.XRI_S_LITERAL.equals(predicateString)) {
 
-			object = this.parseString(objectString);
+			Object object = this.parseLiteralData(objectString);
+
+			return this.makeXDI3Statement(string, subject, predicate, object);
+		} else if (XDIConstants.XRI_S_CONTEXT.equals(predicateString)) {
+
+			XDI3SubSegment object = this.parseXDI3SubSegment(objectString);
+
+			return this.makeXDI3Statement(string, subject, predicate, object);
 		} else {
 
-			object = this.parseXDI3Segment(objectString);
-		}
+			XDI3Segment object = this.parseXDI3Segment(objectString);
 
-		return this.makeXDI3Statement(string, subject, predicate, object);
+			return this.makeXDI3Statement(string, subject, predicate, object);
+		}
 	}
 
 	@Override
@@ -73,7 +79,7 @@ public class XDI3ParserManual extends XDI3Parser {
 
 			// parse beginning of subsegment
 
-			if (pos < string.length() && (pair = sin(string.charAt(pos))) != null) { pairs.push(pair); pos++; }
+			if (pos < string.length() && (pair = cla(string.charAt(pos))) != null) { pairs.push(pair); pos++; }
 			if (pos < string.length() && (pair = att(string.charAt(pos))) != null) { pairs.push(pair); pos++; }
 			if (pos < string.length() && cs(string.charAt(pos)) != null) pos++;
 			if (pos < string.length() && (pair = xs(string.charAt(pos))) != null) { pairs.push(pair); pos++; }
@@ -88,7 +94,7 @@ public class XDI3ParserManual extends XDI3Parser {
 
 					// reached beginning of the next subsegment
 
-					if (sin(string.charAt(pos)) != null) break;
+					if (cla(string.charAt(pos)) != null) break;
 					if (att(string.charAt(pos)) != null) break;
 					if (cs(string.charAt(pos)) != null) break;
 					if (xs(string.charAt(pos)) != null) break;
@@ -100,7 +106,7 @@ public class XDI3ParserManual extends XDI3Parser {
 
 					// new pair being opened?
 
-					pair = sin(string.charAt(pos));
+					pair = cla(string.charAt(pos));
 					if (pair == null) pair = att(string.charAt(pos));
 					if (pair == null) pair = xs(string.charAt(pos));
 
@@ -124,7 +130,7 @@ public class XDI3ParserManual extends XDI3Parser {
 				pos++;
 			}
 
-			if (! pairs.isEmpty()) throw new ParserException("Missing closing character '" + pairs.peek().charAt(1) + "'.");
+			if (! pairs.isEmpty()) throw new ParserException("Missing closing character '" + pairs.peek().charAt(1) + "' at position " + pos + ".");
 
 			subSegments.add(this.parseXDI3SubSegment(string.substring(start, pos)));
 
@@ -132,7 +138,7 @@ public class XDI3ParserManual extends XDI3Parser {
 		}
 
 		// done
-		
+
 		return this.makeXDI3Segment(string, subSegments);
 	}
 
@@ -142,40 +148,40 @@ public class XDI3ParserManual extends XDI3Parser {
 		if (log.isTraceEnabled()) log.trace("Parsing subsegment: " + string);
 
 		Character cs = null;
-		String sin = null;
+		String cla = null;
 		String att = null;
 		String literal = null;
 		XDI3XRef xref = null;
 
 		int pos = 0, len = string.length();
 
-		// extract singleton pair
-		
-		if (pos < len && (sin = sin(string.charAt(pos))) != null) {
+		// extract class pair
 
-			if (string.charAt(len - 1) != sin.charAt(1)) throw new ParserException("Invalid subsegment: " + string + " (invalid closing '" + sin.charAt(1) + "' character for singleton)");
+		if (pos < len && (cla = cla(string.charAt(pos))) != null) {
+
+			if (string.charAt(len - 1) != cla.charAt(1)) throw new ParserException("Invalid subsegment: " + string + " (invalid closing '" + cla.charAt(1) + "' character for class at position " + pos + ")");
 
 			pos++; len--;
 		}
 
 		// extract attribute pair
-		
+
 		if (pos < len && (att = att(string.charAt(pos))) != null) {
 
-			if (string.charAt(len - 1) != att.charAt(1)) throw new ParserException("Invalid subsegment: " + string + " (invalid closing '" + att.charAt(1) + "' character for attribute)");
+			if (string.charAt(len - 1) != att.charAt(1)) throw new ParserException("Invalid subsegment: " + string + " (invalid closing '" + att.charAt(1) + "' character for attribute at position " + pos + ")");
 
 			pos++; len--;
 		}
 
 		// extract cs
-		
+
 		if (pos < len && (cs = cs(string.charAt(pos))) != null) {
 
 			pos++;
 		}
 
 		// parse the rest, either xref or literal
-		
+
 		if (pos < len) {
 
 			if (xs(string.charAt(pos)) != null) {
@@ -183,14 +189,14 @@ public class XDI3ParserManual extends XDI3Parser {
 				xref = this.parseXDI3XRef(string.substring(pos, len));
 			} else {
 
-				if (pos == 0) throw new ParserException("Invalid subsegment: " + string + " (no cs, xref)");
+				if (pos == 0) throw new ParserException("Invalid subsegment: " + string + " (no context symbol or cross reference)");
 				literal = parseLiteral(string.substring(pos, len));
 			}
 		}
 
 		// done
-		
-		return this.makeXDI3SubSegment(string, cs, sin != null, att != null, literal, xref);
+
+		return this.makeXDI3SubSegment(string, cs, cla != null, att != null, literal, xref);
 	}
 
 	@Override
@@ -199,8 +205,8 @@ public class XDI3ParserManual extends XDI3Parser {
 		if (log.isTraceEnabled()) log.trace("Parsing xref: " + string);
 
 		String xs = xs(string.charAt(0));
-		if (xs == null) throw new ParserException("Invalid xref: " + string + " (no opening delimiter)");
-		if (string.charAt(string.length() - 1) != xs.charAt(1)) throw new ParserException("Invalid xref: " + string + " (invalid closing '" + xs.charAt(1) + "' character)");
+		if (xs == null) throw new ParserException("Invalid cross reference: " + string + " (no opening delimiter)");
+		if (string.charAt(string.length() - 1) != xs.charAt(1)) throw new ParserException("Invalid cross reference: " + string + " (invalid closing '" + xs.charAt(1) + "' delimiter)");
 		if (string.length() == 2) return this.makeXDI3XRef(string, xs, null, null, null, null, null, null);
 
 		String value = string.substring(1, string.length() - 1);
@@ -231,7 +237,7 @@ public class XDI3ParserManual extends XDI3Parser {
 
 				partialSubject = this.parseXDI3Segment(value.substring(0, split0));
 				partialPredicate = this.parseXDI3Segment(value.substring(split0 + 1));
-			} else if (cs(value.charAt(0)) != null || sin(value.charAt(0)) != null || att(value.charAt(0)) != null || xs(value.charAt(0)) != null) {
+			} else if (cs(value.charAt(0)) != null || cla(value.charAt(0)) != null || att(value.charAt(0)) != null || xs(value.charAt(0)) != null) {
 
 				segment = this.parseXDI3Segment(value);
 			} else {
@@ -240,30 +246,34 @@ public class XDI3ParserManual extends XDI3Parser {
 			}
 		}
 
+		// done
+		
 		return this.makeXDI3XRef(string, xs, segment, statement, partialSubject, partialPredicate, iri, literal);
 	}
 
-	public String parseString(String string) {
+	public Object parseLiteralData(String string) {
 
-		if (log.isTraceEnabled()) log.trace("Parsing string: " + string);
+		if (log.isTraceEnabled()) log.trace("Parsing literal data: " + string);
 
-		if (string.length() < 2) throw new ParserException("Invalid string: " + string);
-		if (string.charAt(0) != '"') throw new ParserException("Invalid string: " + string + " (no opening double quotes)");
-		if (string.charAt(string.length() - 1) != '"') throw new ParserException("Invalid string: " + string + " (no closing double quotes)");
+		try {
 
-		return string.substring(1, string.length() - 1);
-	}
+			return AbstractLiteral.stringToLiteralData(string);
+		} catch (Exception ex) {
+
+			throw new ParserException("Invalid literal data: " + string);
+		}
+	}	
 
 	private static String stripXs(String string) {
 
-		string = stripXs(string, Pattern.compile(".*(\\([^\\(\\)]*\\)).*"));
-		string = stripXs(string, Pattern.compile(".*(\\{[^\\{\\}]*\\}).*"));
-		string = stripXs(string, Pattern.compile(".*(\\\"[^\\\"\\]]*\\\").*"));
+		string = stripPattern(string, Pattern.compile(".*(\\([^\\(\\)]*\\)).*"));
+		string = stripPattern(string, Pattern.compile(".*(\\{[^\\{\\}]*\\}).*"));
+		string = stripPattern(string, Pattern.compile(".*(\"[^\"]*\").*"));
 
 		return string;
 	}
 
-	private static String stripXs(String string, Pattern pattern) {
+	private static String stripPattern(String string, Pattern pattern) {
 
 		String temp = string;
 
@@ -286,12 +296,12 @@ public class XDI3ParserManual extends XDI3Parser {
 	private static boolean isIri(String string) {
 
 		int indexColon = string.indexOf(':');
-		int indexEquals = string.indexOf(XDI3Constants.CS_EQUALS.charValue());
-		int indexAt = string.indexOf(XDI3Constants.CS_AT.charValue());
-		int indexPlus = string.indexOf(XDI3Constants.CS_PLUS.charValue());
-		int indexDollar = string.indexOf(XDI3Constants.CS_DOLLAR.charValue());
-		int indexStar = string.indexOf(XDI3Constants.CS_STAR.charValue());
-		int indexBang = string.indexOf(XDI3Constants.CS_BANG.charValue());
+		int indexEquals = string.indexOf(XDIConstants.CS_EQUALS.charValue());
+		int indexAt = string.indexOf(XDIConstants.CS_AT.charValue());
+		int indexPlus = string.indexOf(XDIConstants.CS_PLUS.charValue());
+		int indexDollar = string.indexOf(XDIConstants.CS_DOLLAR.charValue());
+		int indexStar = string.indexOf(XDIConstants.CS_STAR.charValue());
+		int indexBang = string.indexOf(XDIConstants.CS_BANG.charValue());
 
 		if (indexColon == -1) return false;
 
@@ -311,29 +321,30 @@ public class XDI3ParserManual extends XDI3Parser {
 
 	private static Character cs(char c) {
 
-		for (Character cs : XDI3Constants.CS_ARRAY) if (cs.charValue() == c) return cs;
+		for (Character cs : XDIConstants.CS_ARRAY) if (cs.charValue() == c) return cs;
 
 		return null;
 	}
 
-	private static String sin(char c) {
+	private static String cla(char c) {
 
-		if (XDI3Constants.XS_SINGLETON.charAt(0) == c) return XDI3Constants.XS_SINGLETON;
+		if (XDIConstants.XS_CLASS.charAt(0) == c) return XDIConstants.XS_CLASS;
 
 		return null;
 	}
 
 	private static String att(char c) {
 
-		if (XDI3Constants.XS_ATTRIBUTE.charAt(0) == c) return XDI3Constants.XS_ATTRIBUTE;
+		if (XDIConstants.XS_ATTRIBUTE.charAt(0) == c) return XDIConstants.XS_ATTRIBUTE;
 
 		return null;
 	}
 
 	private static String xs(char c) {
 
-		if (XDI3Constants.XS_ROOT.charAt(0) == c) return XDI3Constants.XS_ROOT;
-		if (XDI3Constants.XS_VARIABLE.charAt(0) == c) return XDI3Constants.XS_VARIABLE;
+		if (XDIConstants.XS_ROOT.charAt(0) == c) return XDIConstants.XS_ROOT;
+		if (XDIConstants.XS_VARIABLE.charAt(0) == c) return XDIConstants.XS_VARIABLE;
+		if (XDIConstants.XS_DEFINITION.charAt(0) == c) return XDIConstants.XS_DEFINITION;
 
 		return null;
 	}

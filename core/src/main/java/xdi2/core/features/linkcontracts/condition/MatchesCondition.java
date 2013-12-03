@@ -5,7 +5,6 @@ import java.util.regex.Pattern;
 import xdi2.core.ContextNode;
 import xdi2.core.constants.XDIPolicyConstants;
 import xdi2.core.features.linkcontracts.evaluation.PolicyEvaluationContext;
-import xdi2.core.util.StatementUtil;
 import xdi2.core.xri3.XDI3Segment;
 import xdi2.core.xri3.XDI3Statement;
 
@@ -29,14 +28,14 @@ public class MatchesCondition extends Condition {
 
 	/**
 	 * Checks if a statement is a valid XDI $matches condition.
-	 * @param relation The relation to check.
-	 * @return True if the relation is a valid XDI $matches condition.
+	 * @param statement The statement to check.
+	 * @return True if the statement is a valid XDI $matches condition.
 	 */
 	public static boolean isValid(XDI3Statement statement) {
 
 		if (! statement.isRelationStatement()) return false;
 
-		if (! XDIPolicyConstants.XRI_S_MATCHES.equals(statement.getArcXri())) return false;
+		if (! XDIPolicyConstants.XRI_S_MATCHES.equals(statement.getRelationArcXri())) return false;
 
 		return true;
 	}
@@ -55,7 +54,7 @@ public class MatchesCondition extends Condition {
 
 	public static MatchesCondition fromSubjectAndObject(XDI3Segment subject, XDI3Segment object) {
 
-		return fromStatement(StatementUtil.fromComponents(subject, XDIPolicyConstants.XRI_S_MATCHES, object));
+		return fromStatement(XDI3Statement.fromRelationComponents(subject, XDIPolicyConstants.XRI_S_MATCHES, object));
 	}
 
 	/*
@@ -65,8 +64,8 @@ public class MatchesCondition extends Condition {
 	@Override
 	public Boolean evaluateInternal(PolicyEvaluationContext policyEvaluationContext) {
 
-		ContextNode subject = policyEvaluationContext.getContextNode(this.getStatement().getSubject());
-		ContextNode object = policyEvaluationContext.getContextNode((XDI3Segment) this.getStatement().getObject());
+		ContextNode subject = policyEvaluationContext.getContextNode(this.getStatementXri().getSubject());
+		ContextNode object = policyEvaluationContext.getContextNode((XDI3Segment) this.getStatementXri().getObject());
 
 		if (subject == null || object == null) return Boolean.FALSE;
 
@@ -74,8 +73,10 @@ public class MatchesCondition extends Condition {
 
 			if (! object.containsLiteral()) return Boolean.FALSE;
 
-			String subjectLiteralData = subject.getLiteral().getLiteralData();
-			String objectLiteralData = object.getLiteral().getLiteralData();
+			String subjectLiteralData = subject.getLiteral().getLiteralDataString();
+			String objectLiteralData = object.getLiteral().getLiteralDataString();
+
+			if (subjectLiteralData == null || objectLiteralData == null) return Boolean.FALSE;
 
 			return Boolean.valueOf(Pattern.matches(objectLiteralData, subjectLiteralData));
 		}

@@ -1,17 +1,21 @@
 package xdi2.core.util;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
-import java.util.UUID;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import xdi2.core.constants.XDIConstants;
 import xdi2.core.xri3.XDI3Segment;
+import xdi2.core.xri3.XDI3Statement;
 import xdi2.core.xri3.XDI3SubSegment;
+import xdi2.core.xri3.XDI3XRef;
 
 /**
- * Various utility methods for working with XRIs.
+ * Various utility methods for working with XRI 3.0 syntax.
  * 
  * @author markus
  */
@@ -22,165 +26,201 @@ public final class XDI3Util {
 	private XDI3Util() { }
 
 	/**
-	 * Creates a UUID subsegment
-	 */
-	public static XDI3SubSegment randomUuidSubSegment(Character cs) {
-
-		return XDI3SubSegment.create("" + cs + ".uuid." + UUID.randomUUID().toString());
-	}
-
-	/**
 	 * Checks if an XRI starts with a certain other XRI.
 	 */
-	public static boolean startsWith(XDI3Segment xri, XDI3Segment base, boolean variablesInXri, boolean variablesInBase) {
+	public static XDI3Segment startsWith(final XDI3Segment xri, final XDI3Segment startXri, final boolean variablesInXri, final boolean variablesInStart) {
 
-		if (log.isTraceEnabled()) log.trace("startsWith(" + xri + "," + base + "," + variablesInXri + "," + variablesInBase + ")");
+		if (xri == null) throw new NullPointerException();
+		if (startXri == null) throw new NullPointerException();
 
-		if (xri == null) return false;
-		if (base == null) return true;
+		XDI3Segment result = null;
 
-		int xriIndex = 0, baseIndex = 0;
+		try {
 
-		while (true) {
+			if (startXri.equals(XDIConstants.XRI_S_ROOT)) { result = XDIConstants.XRI_S_ROOT; return result; }
+			if (xri.equals(XDIConstants.XRI_S_ROOT)) { result = null; return result; }
 
-			if (baseIndex == base.getNumSubSegments()) return true;
-			if (xriIndex == xri.getNumSubSegments()) return false;
+			int xriIndex = 0, startIndex = 0;
 
-			XDI3SubSegment xriSubSegment = xri.getSubSegment(xriIndex);
-			XDI3SubSegment baseSubSegment = base.getSubSegment(baseIndex);
+			while (true) {
 
-			// check variables
+				if (startIndex == startXri.getNumSubSegments()) { result = XDI3Util.parentXri(xri, xriIndex); return result; }
+				if (xriIndex == xri.getNumSubSegments()) { result = null; return result; }
 
-			if (variablesInXri && VariableUtil.isVariable(xriSubSegment)) {
+				// check variables
 
-				if (VariableUtil.matches(xriSubSegment, baseSubSegment)) {
+				if (variablesInXri && VariableUtil.isVariable(xri.getSubSegment(xriIndex))) {
 
-					xriIndex++;
-					baseIndex++;
+					if (VariableUtil.matches(xri.getSubSegment(xriIndex), startXri.getSubSegment(startIndex))) {
 
-					if (VariableUtil.isMultiple(xriSubSegment)) {
+						startIndex++;
 
-						while (baseIndex < base.getNumSubSegments() && VariableUtil.matches(xriSubSegment, baseSubSegment)) baseIndex++;
+						if (VariableUtil.isMultiple(xri.getSubSegment(xriIndex))) {
+
+							while (true) {
+
+								if (startIndex == startXri.getNumSubSegments()) break;
+								if (! VariableUtil.matches(xri.getSubSegment(xriIndex), startXri.getSubSegment(startIndex))) break;
+								if (xriIndex + 1 < xri.getNumSubSegments() && xri.getSubSegment(xriIndex + 1).equals(startXri.getSubSegment(startIndex))) break;
+
+								startIndex++;
+							}
+						}
+
+						xriIndex++;
+
+						continue;
+					} else {
+
+						{ result = null; return result; }
 					}
-
-					continue;
-				} else {
-
-					return false;
 				}
-			}
 
-			if (variablesInBase && VariableUtil.isVariable(baseSubSegment)) {
+				if (variablesInStart && VariableUtil.isVariable(startXri.getSubSegment(startIndex))) {
 
-				if (VariableUtil.matches(baseSubSegment, xriSubSegment)) {
+					if (VariableUtil.matches(startXri.getSubSegment(startIndex), xri.getSubSegment(xriIndex))) {
 
-					xriIndex++;
-					baseIndex++;
+						xriIndex++;
 
-					if (VariableUtil.isMultiple(baseSubSegment)) {
+						if (VariableUtil.isMultiple(startXri.getSubSegment(startIndex))) {
 
-						while (xriIndex < xri.getNumSubSegments() && VariableUtil.matches(baseSubSegment, xriSubSegment)) xriIndex++;
+							while (true) {
+
+								if (xriIndex == xri.getNumSubSegments()) break;
+								if (! VariableUtil.matches(startXri.getSubSegment(startIndex), xri.getSubSegment(xriIndex))) break;
+								if (startIndex + 1 < startXri.getNumSubSegments() && xri.getSubSegment(xriIndex).equals(startXri.getSubSegment(startIndex + 1))) break;
+
+								xriIndex++;
+							}
+						}
+
+						startIndex++;
+
+						continue;
+					} else {
+
+						{ result = null; return result; }
 					}
-
-					continue;
-				} else {
-
-					return false;
 				}
+
+				// no variables? just match the subsegment
+
+				if (! (xri.getSubSegment(xriIndex).equals(startXri.getSubSegment(startIndex)))) { result = null; return result; }
+
+				xriIndex++;
+				startIndex++;
 			}
+		} finally {
 
-			// no variables? just match the subsegment
-
-			if (! (xriSubSegment.equals(baseSubSegment))) return false;
-
-			xriIndex++;
-			baseIndex++;
+			if (log.isTraceEnabled()) log.trace("startsWith(" + xri + "," + startXri + "," + variablesInXri + "," + variablesInStart + ") --> " + result);
 		}
 	}
 
 	/**
 	 * Checks if an XRI starts with a certain other XRI.
 	 */
-	public static boolean startsWith(XDI3Segment xri, XDI3Segment base) {
+	public static XDI3Segment startsWith(XDI3Segment xri, XDI3Segment startXri) {
 
-		return startsWith(xri, base, false, false);
+		return startsWith(xri, startXri, false, false);
 	}
 
 	/**
 	 * Checks if an XRI ends with a certain other XRI.
 	 */
-	public static boolean endsWith(XDI3Segment xri, XDI3Segment base, boolean variablesInXri, boolean variablesInBase) {
+	public static XDI3Segment endsWith(final XDI3Segment xri, final XDI3Segment endXri, final boolean variablesInXri, final boolean variablesInEnd) {
 
-		if (log.isTraceEnabled()) log.trace("endsWith(" + xri + "," + base + "," + variablesInXri + "," + variablesInBase + ")");
+		if (xri == null) throw new NullPointerException();
+		if (endXri == null) throw new NullPointerException();
 
-		if (xri == null) return false;
-		if (base == null) return true;
+		XDI3Segment result = null;
 
-		int xriIndex = xri.getNumSubSegments() - 1, baseIndex = base.getNumSubSegments() - 1;
+		try {
 
-		while (true) {
+			if (endXri.equals(XDIConstants.XRI_S_ROOT)) { result = XDIConstants.XRI_S_ROOT; return result; }
+			if (xri.equals(XDIConstants.XRI_S_ROOT)) { result = null; return result; }
 
-			if (baseIndex == -1) return true;
-			if (xriIndex == -1) return false;
+			int xriIndex = xri.getNumSubSegments() - 1, endIndex = endXri.getNumSubSegments() - 1;
 
-			XDI3SubSegment xriSubSegment = xri.getSubSegment(xriIndex);
-			XDI3SubSegment baseSubSegment = base.getSubSegment(baseIndex);
+			while (true) {
 
-			// check variables
+				if (endIndex == -1) { result = XDI3Util.localXri(xri, - xriIndex - 1); return result; }
+				if (xriIndex == -1) { result = null; return result; }
 
-			if (variablesInXri && VariableUtil.isVariable(xriSubSegment)) {
+				// check variables
 
-				if (VariableUtil.matches(xriSubSegment, baseSubSegment)) {
+				if (variablesInXri && VariableUtil.isVariable(xri.getSubSegment(xriIndex))) {
 
-					xriIndex--;
-					baseIndex--;
+					if (VariableUtil.matches(xri.getSubSegment(xriIndex), endXri.getSubSegment(endIndex))) {
 
-					if (VariableUtil.isMultiple(xriSubSegment)) {
+						endIndex--;
 
-						while (baseIndex > -1 && VariableUtil.matches(xriSubSegment, baseSubSegment)) baseIndex--;
+						if (VariableUtil.isMultiple(xri.getSubSegment(xriIndex))) {
+
+							while (true) {
+
+								if (endIndex == -1) break;
+								if (! VariableUtil.matches(xri.getSubSegment(xriIndex), endXri.getSubSegment(endIndex))) break;
+								if (xriIndex - 1 > -1 && xri.getSubSegment(xriIndex - 1).equals(endXri.getSubSegment(endIndex))) break;
+
+								endIndex--;
+							}
+						}
+
+						xriIndex--;
+
+						continue;
+					} else {
+
+						{ result = null; return result; }
 					}
-
-					continue;
-				} else {
-
-					return false;
 				}
-			}
 
-			if (variablesInBase && VariableUtil.isVariable(baseSubSegment)) {
+				if (variablesInEnd && VariableUtil.isVariable(endXri.getSubSegment(endIndex))) {
 
-				if (VariableUtil.matches(baseSubSegment, xriSubSegment)) {
+					if (VariableUtil.matches(endXri.getSubSegment(endIndex), xri.getSubSegment(xriIndex))) {
 
-					xriIndex--;
-					baseIndex--;
+						xriIndex--;
 
-					if (VariableUtil.isMultiple(baseSubSegment)) {
+						if (VariableUtil.isMultiple(endXri.getSubSegment(endIndex))) {
 
-						while (xriIndex > -1 && VariableUtil.matches(baseSubSegment, xriSubSegment)) xriIndex--;
+							while (true) {
+
+								if (xriIndex == -1) break;
+								if (! VariableUtil.matches(endXri.getSubSegment(endIndex), xri.getSubSegment(xriIndex))) break;
+								if (endIndex - 1 > -1 && xri.getSubSegment(xriIndex).equals(endXri.getSubSegment(endIndex - 1))) break;
+
+								xriIndex--;
+							}
+						}
+
+						endIndex--;
+
+						continue;
+					} else {
+
+						{ result = null; return result; }
 					}
-
-					continue;
-				} else {
-
-					return false;
 				}
+
+				// no variables? just match the subsegment
+
+				if (! (xri.getSubSegment(xriIndex).equals(endXri.getSubSegment(endIndex)))) { result = null; return result; }
+
+				xriIndex--;
+				endIndex--;
 			}
+		} finally {
 
-			// no variables? just match the subsegment
-
-			if (! (xriSubSegment.equals(baseSubSegment))) return false;
-
-			xriIndex--;
-			baseIndex--;
+			if (log.isTraceEnabled()) log.trace("endsWith(" + xri + "," + endXri + "," + variablesInXri + "," + variablesInEnd + ") --> " + result);
 		}
 	}
 
 	/**
 	 * Checks if an XRI ends with a certain other XRI.
 	 */
-	public static boolean endsWith(XDI3Segment xri, XDI3Segment base) {
+	public static XDI3Segment endsWith(final XDI3Segment xri, final XDI3Segment endXri) {
 
-		return endsWith(xri, base, false, false);
+		return endsWith(xri, endXri, false, false);
 	}
 
 	/**
@@ -188,26 +228,34 @@ public final class XDI3Util {
 	 * For =a*b*c*d and 1, this returns =a
 	 * For =a*b*c*d and -1, this returns =a*b*c
 	 */
-	public static XDI3Segment parentXri(XDI3Segment xri, int numSubSegments) {
+	public static XDI3Segment parentXri(final XDI3Segment xri, final int numSubSegments) {
 
-		if (log.isTraceEnabled()) log.trace("parentXri(" + xri + "," + numSubSegments + ")");
+		if (xri == null) throw new NullPointerException();
 
-		StringBuilder buffer = new StringBuilder();
+		XDI3Segment result = null;
 
-		if (numSubSegments > 0) {
+		try {
 
-			for (int i = 0; i < numSubSegments; i++) buffer.append(xri.getSubSegment(i).toString());
-		} else if (numSubSegments < 0) {
+			StringBuilder buffer = new StringBuilder();
 
-			for (int i = 0; i < xri.getNumSubSegments() - (- numSubSegments); i++) buffer.append(xri.getSubSegment(i).toString());
-		} else {
+			if (numSubSegments > 0) {
 
-			return null;
+				for (int i = 0; i < numSubSegments; i++) buffer.append(xri.getSubSegment(i).toString());
+			} else if (numSubSegments < 0) {
+
+				for (int i = 0; i < xri.getNumSubSegments() - (- numSubSegments); i++) buffer.append(xri.getSubSegment(i).toString());
+			} else {
+
+				{ result = xri; return result; }
+			}
+
+			if (buffer.length() == 0) { result = null; return result; }
+
+			{ result = XDI3Segment.create(buffer.toString()); return result; }
+		} finally {
+
+			if (log.isTraceEnabled()) log.trace("parentXri(" + xri + "," + numSubSegments + ") --> " + result);
 		}
-
-		if (buffer.length() == 0) return null;
-
-		return XDI3Segment.create(buffer.toString());
 	}
 
 	/**
@@ -215,163 +263,244 @@ public final class XDI3Util {
 	 * For =a*b*c*d and 1, this returns *d
 	 * For =a*b*c*d and -1, this returns *b*c*d
 	 */
-	public static XDI3Segment localXri(XDI3Segment xri, int numSubSegments) {
+	public static XDI3Segment localXri(final XDI3Segment xri, final int numSubSegments) {
 
-		if (log.isTraceEnabled()) log.trace("localXri(" + xri + "," + numSubSegments + ")");
+		if (xri == null) throw new NullPointerException();
 
-		StringBuilder buffer = new StringBuilder();
+		XDI3Segment result = null;
 
-		if (numSubSegments > 0) {
+		try {
 
-			for (int i = xri.getNumSubSegments() - numSubSegments; i < xri.getNumSubSegments(); i++) buffer.append(xri.getSubSegment(i).toString());
-		} else if (numSubSegments < 0) {
+			StringBuilder buffer = new StringBuilder();
 
-			for (int i = (- numSubSegments); i < xri.getNumSubSegments(); i++) buffer.append(xri.getSubSegment(i).toString());
-		} else {
+			if (numSubSegments > 0) {
 
-			return null;
-		}
+				for (int i = xri.getNumSubSegments() - numSubSegments; i < xri.getNumSubSegments(); i++) buffer.append(xri.getSubSegment(i).toString());
+			} else if (numSubSegments < 0) {
 
-		if (buffer.length() == 0) return null;
+				for (int i = (- numSubSegments); i < xri.getNumSubSegments(); i++) buffer.append(xri.getSubSegment(i).toString());
+			} else {
 
-		return XDI3Segment.create(buffer.toString());
-	}
-
-	/**
-	 * Creates an expanded XRI from a base XRI.
-	 * E.g. for *c*d and =a*b, this returns =a*b*c*d
-	 */
-	public static XDI3Segment expandXri(XDI3Segment xri, XDI3Segment base) {
-
-		if (log.isTraceEnabled()) log.trace("expandXri(" + xri + "," + base + ")");
-
-		StringBuffer buffer = new StringBuffer();
-		if (base != null && ! XDIConstants.XRI_S_ROOT.equals(base)) buffer.append(base.toString()); 
-		if (xri != null && ! XDIConstants.XRI_S_ROOT.equals(xri)) buffer.append(xri.toString()); 
-
-		if (buffer.length() == 0) buffer.append("()");
-
-		return XDI3Segment.create(buffer.toString());
-	}
-
-	/**
-	 * Creates a reduced XRI from a base XRI.
-	 * E.g. for =a*b*c*d and =a*b, this returns *c*d
-	 */
-	public static XDI3Segment reduceXri(XDI3Segment xri, XDI3Segment base, boolean variablesInXri, boolean variablesInBase) {
-
-		if (log.isTraceEnabled()) log.trace("reduceXri(" + xri + "," + base + "," + variablesInXri + "," + variablesInBase + ")");
-
-		if (xri == null) return null;
-		if (base == null) return xri;
-
-		int xriIndex = 0, baseIndex = 0;
-
-		while (true) {
-
-			if (baseIndex == base.getNumSubSegments()) break;
-			if (xriIndex == xri.getNumSubSegments()) return null;
-
-			XDI3SubSegment xriSubSegment = xri.getSubSegment(xriIndex);
-			XDI3SubSegment baseSubSegment = base.getSubSegment(baseIndex);
-
-			// check variables
-
-			if (variablesInXri && VariableUtil.isVariable(xriSubSegment)) {
-
-				if (VariableUtil.matches(xriSubSegment, baseSubSegment)) {
-
-					xriIndex++;
-					baseIndex++;
-
-					if (VariableUtil.isMultiple(xriSubSegment) && baseIndex < base.getNumSubSegments()) {
-
-						baseSubSegment = base.getSubSegment(baseIndex);
-
-						while (VariableUtil.matches(xriSubSegment, baseSubSegment)) {
-
-							if (++baseIndex == base.getNumSubSegments()) break;
-							baseSubSegment = base.getSubSegment(baseIndex);
-						}
-					}
-
-					continue;
-				} else {
-
-					return null;
-				}
+				{ result = xri; return xri; }
 			}
 
-			if (variablesInBase && VariableUtil.isVariable(baseSubSegment)) {
+			if (buffer.length() == 0) { result = null; return result; }
 
-				if (VariableUtil.matches(baseSubSegment, xriSubSegment)) {
+			{ result = XDI3Segment.create(buffer.toString()); return result; }
+		} finally {
 
-					xriIndex++;
-					baseIndex++;
-
-					if (VariableUtil.isMultiple(baseSubSegment) && xriIndex < xri.getNumSubSegments()) {
-
-						xriSubSegment = xri.getSubSegment(xriIndex);
-
-						while (VariableUtil.matches(baseSubSegment, xriSubSegment)) {
-
-							if (++xriIndex == xri.getNumSubSegments()) break;
-							xriSubSegment = xri.getSubSegment(xriIndex);
-						}
-					}
-
-					continue;
-				} else {
-
-					return null;
-				}
-			}
-
-			// no variables? just match the subsegment
-
-			if (! (xriSubSegment.equals(baseSubSegment))) return null;
-
-			xriIndex++;
-			baseIndex++;
+			if (log.isTraceEnabled()) log.trace("localXri(" + xri + "," + numSubSegments + ") --> " + result);
 		}
-
-		StringBuilder buffer = new StringBuilder();
-
-		for (; xriIndex<xri.getNumSubSegments(); xriIndex++) {
-
-			buffer.append(xri.getSubSegment(xriIndex).toString());
-		}
-
-		if (buffer.length() == 0) return null;
-
-		return XDI3Segment.create(buffer.toString());
 	}
 
 	/**
-	 * Creates a reduced XRI from a base XRI.
+	 * Removes a start XRI from an XRI.
 	 * E.g. for =a*b*c*d and =a*b, this returns *c*d
+	 * E.g. for =a*b*c*d and (), this returns =a*b*c*d
+	 * E.g. for =a*b*c*d and =a*b*c*d, this returns ()
+	 * E.g. for =a*b*c*d and =x, this returns null
 	 */
-	public static XDI3Segment reduceXri(XDI3Segment xri, XDI3Segment base) {
+	public static XDI3Segment removeStartXri(final XDI3Segment xri, final XDI3Segment start, final boolean variablesInXri, final boolean variablesInStart) {
 
-		return reduceXri(xri, base, false, false);
+		if (xri == null) throw new NullPointerException();
+		if (start == null) throw new NullPointerException();
+
+		XDI3Segment result = null;
+
+		try {
+
+			if (start.equals(XDIConstants.XRI_S_ROOT)) { result = xri; return result; }
+			if (xri.equals(XDIConstants.XRI_S_ROOT)) { result = null; return result; }
+
+			XDI3Segment startXri = XDI3Util.startsWith(xri, start, variablesInXri, variablesInStart);
+			if (startXri == null) { result = null; return result; }
+
+			if (xri.equals(startXri)) { result = XDIConstants.XRI_S_ROOT; return result; }
+
+			{ result = XDI3Util.localXri(xri, - startXri.getNumSubSegments()); return result; }
+		} finally {
+
+			if (log.isTraceEnabled()) log.trace("removeStartXri(" + xri + "," + start + "," + variablesInXri + "," + variablesInStart + ") --> " + result);
+		}
+	}
+
+	/**
+	 * Removes a start XRI from an XRI.
+	 * E.g. for =a*b*c*d and =a*b, this returns *c*d
+	 * E.g. for =a*b*c*d and (), this returns =a*b*c*d
+	 * E.g. for =a*b*c*d and =a*b*c*d, this returns ()
+	 * E.g. for =a*b*c*d and =x, this returns null
+	 */
+	public static XDI3Segment removeStartXri(final XDI3Segment xri, final XDI3Segment start) {
+
+		return removeStartXri(xri, start, false, false);
+	}
+
+	/**
+	 * Removes an end XRI from an XRI.
+	 * E.g. for =a*b*c*d and *c*d, this returns =a*b
+	 * E.g. for =a*b*c*d and (), this returns =a*b*c*d
+	 * E.g. for =a*b*c*d and =a*b*c*d, this returns ()
+	 * E.g. for =a*b*c*d and *y, this returns null
+	 */
+	public static XDI3Segment removeEndXri(final XDI3Segment xri, final XDI3Segment end, final boolean variablesInXri, final boolean variablesInEnd) {
+
+		if (xri == null) throw new NullPointerException();
+		if (end == null) throw new NullPointerException();
+
+		XDI3Segment result = null;
+
+		try {
+
+			if (end.equals(XDIConstants.XRI_S_ROOT)) { result = xri; return result; }
+			if (xri.equals(XDIConstants.XRI_S_ROOT)) { result = null; return result; }
+
+			XDI3Segment endXri = XDI3Util.endsWith(xri, end, variablesInXri, variablesInEnd);
+			if (endXri == null) { result = null; return result; }
+
+			if (xri.equals(endXri)) { result = XDIConstants.XRI_S_ROOT; return result; }
+
+			{ result = XDI3Util.parentXri(xri, - endXri.getNumSubSegments()); return result; }
+		} finally {
+
+			if (log.isTraceEnabled()) log.trace("removeEndXri(" + xri + "," + end + "," + variablesInXri + "," + variablesInEnd + ") --> " + result);
+		}
+	}
+
+	/**
+	 * Removes an end XRI from an XRI.
+	 * E.g. for =a*b*c*d and *c*d, this returns =a*b
+	 * E.g. for =a*b*c*d and (), this returns =a*b*c*d
+	 * E.g. for =a*b*c*d and =a*b*c*d, this returns ()
+	 * E.g. for =a*b*c*d and *y, this returns null
+	 */
+	public static XDI3Segment removeEndXri(final XDI3Segment xri, final XDI3Segment end) {
+
+		return removeEndXri(xri, end, false, false);
 	}
 
 	/**
 	 * Replaces all occurences of a subsegment with a segment.
 	 */
-	public static XDI3Segment replaceXri(XDI3Segment xri, XDI3SubSegment oldXri, XDI3Segment newXri) {
+	public static XDI3Segment replaceXri(final XDI3Segment xri, final XDI3SubSegment oldXri, final XDI3Segment newXri, final boolean replaceInXRefSegment, final boolean replaceInXRefStatement, final boolean replaceInXRefPartialSubjectAndPredicate) {
 
-		StringBuffer buffer = new StringBuffer();
+		if (xri == null) throw new NullPointerException();
+		if (oldXri == null) throw new NullPointerException();
+		if (newXri == null) throw new NullPointerException();
 
-		for (XDI3SubSegment subSegment : xri.getSubSegments()) {
+		XDI3Segment result = null;
 
-			if (subSegment.equals(oldXri)) 
-				buffer.append(newXri.toString());
-			else
-				buffer.append(subSegment.toString());
+		try {
+
+			List<XDI3SubSegment> subSegments = new ArrayList<XDI3SubSegment> ();
+
+			for (XDI3SubSegment subSegment : xri.getSubSegments()) {
+
+				if (subSegment.equals(oldXri)) {
+
+					subSegments.addAll(newXri.getSubSegments());
+
+					continue;
+				}
+
+				if (replaceInXRefSegment && subSegment.hasXRef() && subSegment.getXRef().hasSegment()) {
+
+					XDI3Segment xRefSegment = subSegment.getXRef().getSegment();
+
+					xRefSegment = replaceXri(xRefSegment, oldXri, newXri, replaceInXRefSegment, replaceInXRefStatement, replaceInXRefPartialSubjectAndPredicate);
+
+					subSegments.add(XDI3SubSegment.fromComponents(subSegment.getCs(), subSegment.isClassXs(), subSegment.isAttributeXs(), null, XDI3XRef.fromComponents(subSegment.getXRef().getXs(), xRefSegment, null, null, null, null, null)));
+
+					continue;
+				}
+
+				if (replaceInXRefStatement && subSegment.hasXRef() && subSegment.getXRef().hasStatement()) {
+
+					XDI3Statement xRefStatement = subSegment.getXRef().getStatement();
+
+					//			TODO		xRefSegment = replaceXri(xRefSegment, oldXri, newXri, replaceInXRefSegment, replaceInXRefStatement, replaceInXRefPartialSubjectAndPredicate);
+
+					subSegments.add(XDI3SubSegment.fromComponents(subSegment.getCs(), subSegment.isClassXs(), subSegment.isAttributeXs(), null, XDI3XRef.fromComponents(subSegment.getXRef().getXs(), null, xRefStatement, null, null, null, null)));
+
+					continue;
+				}
+
+				if (replaceInXRefPartialSubjectAndPredicate && subSegment.hasXRef() && subSegment.getXRef().hasPartialSubjectAndPredicate()) {
+
+					XDI3Segment xRefPartialSubject = subSegment.getXRef().getPartialSubject();
+					XDI3Segment xRefPartialPredicate = subSegment.getXRef().getPartialPredicate();
+
+					xRefPartialSubject = replaceXri(xRefPartialSubject, oldXri, newXri, replaceInXRefSegment, replaceInXRefStatement, replaceInXRefPartialSubjectAndPredicate);
+					xRefPartialPredicate = replaceXri(xRefPartialPredicate, oldXri, newXri, replaceInXRefSegment, replaceInXRefStatement, replaceInXRefPartialSubjectAndPredicate);
+
+					subSegments.add(XDI3SubSegment.fromComponents(subSegment.getCs(), subSegment.isClassXs(), subSegment.isAttributeXs(), null, XDI3XRef.fromComponents(subSegment.getXRef().getXs(), null, null, xRefPartialSubject, xRefPartialPredicate, null, null)));
+
+					continue;
+				}
+
+				subSegments.add(subSegment);
+			}
+
+			{ result = XDI3Segment.fromComponents(subSegments); return result; }
+		} finally {
+
+			if (log.isTraceEnabled()) log.trace("replaceXri(" + xri + "," + oldXri + "," + newXri + "," + replaceInXRefPartialSubjectAndPredicate + ") --> " + result);
 		}
+	}
 
-		return XDI3Segment.create(buffer.toString());
+	/**
+	 * Concats all XRIs into a new XRI.
+	 */
+	public static XDI3Segment concatXris(final XDI3Segment... segments) {
+
+		XDI3Segment result = null;
+
+		try {
+
+			StringBuffer buffer = new StringBuffer();
+
+			if (segments != null) {
+
+				for (XDI3Segment segment : segments) {
+
+					if (segment != null && ! XDIConstants.XRI_S_ROOT.equals(segment)) buffer.append(segment.toString());
+				}
+			}
+
+			if (buffer.length() == 0) buffer.append(XDIConstants.XRI_S_ROOT.toString());
+
+			{ result = XDI3Segment.create(buffer.toString()); return result; }
+		} finally {
+
+			if (log.isTraceEnabled()) log.trace("concatXris(" + Arrays.asList(segments) + ") --> " + result);
+		}
+	}
+
+	/**
+	 * Concats two XRIs into a new XRI.
+	 */
+	public static XDI3Segment concatXris(final XDI3SubSegment... subSegments) {
+
+		XDI3Segment[] segments = new XDI3Segment[subSegments.length];
+		for (int i=0; i<subSegments.length; i++) segments[i] = XDI3Segment.fromComponent(subSegments[i]);
+		
+		return concatXris(segments);
+	}
+
+	/**
+	 * Concats two XRIs into a new XRI.
+	 */
+	public static XDI3Segment concatXris(final XDI3Segment segment, final XDI3SubSegment subSegment) {
+
+		return concatXris(segment, subSegment == null ? null : XDI3Segment.fromComponent(subSegment));
+	}
+
+	/**
+	 * Concats two XRIs into a new XRI.
+	 */
+	public static XDI3Segment concatXris(final XDI3SubSegment subSegment, final XDI3Segment segment) {
+
+		return concatXris(subSegment == null ? null : XDI3Segment.fromComponent(subSegment), segment);
 	}
 
 	/*

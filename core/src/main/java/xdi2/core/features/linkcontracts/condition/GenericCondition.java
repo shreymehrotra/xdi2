@@ -1,8 +1,7 @@
 package xdi2.core.features.linkcontracts.condition;
 
-import xdi2.core.ContextNode;
+import xdi2.core.Statement;
 import xdi2.core.features.linkcontracts.evaluation.PolicyEvaluationContext;
-import xdi2.core.xri3.XDI3Segment;
 import xdi2.core.xri3.XDI3Statement;
 
 /**
@@ -14,9 +13,9 @@ public class GenericCondition extends Condition {
 
 	private static final long serialVersionUID = 3812888725775095575L;
 
-	protected GenericCondition(XDI3Statement statement) {
+	protected GenericCondition(XDI3Statement statementXri) {
 
-		super(statement);
+		super(statementXri);
 	}
 
 	/*
@@ -25,8 +24,8 @@ public class GenericCondition extends Condition {
 
 	/**
 	 * Checks if a statement is a valid XDI generic condition.
-	 * @param relation The relation to check.
-	 * @return True if the relation is a valid XDI generic condition.
+	 * @param statement The statement to check.
+	 * @return True if the statement is a valid XDI generic condition.
 	 */
 	public static boolean isValid(XDI3Statement statement) {
 
@@ -52,30 +51,8 @@ public class GenericCondition extends Condition {
 	@Override
 	public Boolean evaluateInternal(PolicyEvaluationContext policyEvaluationContext) {
 
-		if (this.getStatement().isContextNodeStatement()) {
+		Statement statement = policyEvaluationContext.getStatement(this.getStatementXri());
 
-			ContextNode subject = policyEvaluationContext.getContextNode(this.getStatement().getContextNodeXri());
-
-			return Boolean.valueOf(subject != null);
-		}
-
-		if (this.getStatement().isRelationStatement()) {
-
-			ContextNode subject = policyEvaluationContext.getContextNode(this.getStatement().getContextNodeXri());
-			XDI3Segment arcXri = this.getStatement().getArcXri();
-			XDI3Segment targetContextNodeXri = policyEvaluationContext.getContextNodeXri(this.getStatement().getTargetContextNodeXri());
-
-			return Boolean.valueOf(subject != null && subject.containsRelation(arcXri, targetContextNodeXri));
-		}
-
-		if (this.getStatement().isLiteralStatement()) {
-
-			ContextNode subject = policyEvaluationContext.getContextNode(this.getStatement().getContextNodeXri());
-			String literalData = this.getStatement().getLiteralData();
-
-			return Boolean.valueOf(subject != null && subject.containsLiteral(literalData));
-		}
-
-		return Boolean.FALSE;
+		return Boolean.valueOf(statement != null);
 	}
 }

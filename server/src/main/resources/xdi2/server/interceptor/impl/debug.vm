@@ -103,16 +103,22 @@ h1 { font-size: 1.5em; }
 		    		<br>[databaseName] <span style="color:gray">$messagingtargetbypath.value.graph.keyValueStore.databaseName</span>
 		    	#end
 	    	#end
+	    	#if($messagingtargetbypath.value.graph.class.canonicalName=="xdi2.core.impl.json.JSONGraph")
+	    		<br><span style="color:gray">$messagingtargetbypath.value.graph.jsonStore.class.canonicalName</span>
+		    	#if($messagingtargetbypath.value.graph.jsonStore.class.canonicalName=="xdi2.core.impl.json.file.FileJSONStore")
+		    		<br>[prefix] <span style="color:gray">$messagingtargetbypath.value.graph.jsonStore.prefix</span>
+		    	#end
+	    	#end
 	    	#if($messagingtargetbypath.value.graph.class.canonicalName=="xdi2.core.impl.wrapped.WrappedGraph")
-	    		<br><span style="color:gray">$messagingtargetbypath.value.graph.graphWrapper.class.canonicalName</span>
-		    	#if($messagingtargetbypath.value.graph.graphWrapper.class.canonicalName=="xdi2.core.impl.wrapped.file.FileGraphWrapper")
-		    		<br>[path] <span style="color:gray">$messagingtargetbypath.value.graph.graphWrapper.path</span>
+	    		<br><span style="color:gray">$messagingtargetbypath.value.graph.wrapperStore.class.canonicalName</span>
+		    	#if($messagingtargetbypath.value.graph.wrapperStore.class.canonicalName=="xdi2.core.impl.wrapped.file.FileWrapperStore")
+		    		<br>[path] <span style="color:gray">$messagingtargetbypath.value.graph.wrapperStore.path</span>
 		    	#end
-		    	#if($messagingtargetbypath.value.graph.graphWrapper.class.canonicalName=="xdi2.core.impl.wrapped.url.URLGraphWrapper")
-		    		<br>[url] <span style="color:gray">$messagingtargetbypath.value.graph.graphWrapper.url</span>
+		    	#if($messagingtargetbypath.value.graph.wrapperStore.class.canonicalName=="xdi2.core.impl.wrapped.url.URLWrapperStore")
+		    		<br>[url] <span style="color:gray">$messagingtargetbypath.value.graph.wrapperStore.url</span>
 		    	#end
-		    	#if($messagingtargetbypath.value.graph.graphWrapper.class.canonicalName=="xdi2.core.impl.wrapped.classpath.ClasspathGraphWrapper")
-		    		<br>[classpath] <span style="color:gray">$messagingtargetbypath.value.graph.graphWrapper.classpath</span>
+		    	#if($messagingtargetbypath.value.graph.wrapperStore.class.canonicalName=="xdi2.core.impl.wrapped.classpath.ClasspathWrapperStore")
+		    		<br>[classpath] <span style="color:gray">$messagingtargetbypath.value.graph.wrapperStore.classpath</span>
 		    	#end
 	    	#end
 			<p><form action="" method="post">

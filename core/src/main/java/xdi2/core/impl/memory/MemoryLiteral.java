@@ -1,7 +1,5 @@
 package xdi2.core.impl.memory;
 
-import xdi2.core.ContextNode;
-import xdi2.core.Graph;
 import xdi2.core.Literal;
 import xdi2.core.impl.AbstractLiteral;
 
@@ -9,23 +7,23 @@ public class MemoryLiteral extends AbstractLiteral implements Literal {
 
 	private static final long serialVersionUID = -7857969624385707741L;
 
-	private String literalData;
+	private Object literalData;
 
-	MemoryLiteral(Graph graph, ContextNode contextNode, String literalData) {
+	MemoryLiteral(MemoryContextNode contextNode, Object literalData) {
 
-		super(graph, contextNode);
+		super(contextNode);
 
 		this.literalData = literalData;
 	}
 
 	@Override
-	public String getLiteralData() {
+	public Object getLiteralData() {
 
 		return this.literalData;
 	}
 
 	@Override
-	public void setLiteralData(String literalData) {
+	public void setLiteralData(Object literalData) {
 
 		this.literalData = literalData;
 	}

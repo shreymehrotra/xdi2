@@ -12,14 +12,13 @@ public class MemoryGraph extends AbstractGraph implements Graph {
 
 	private MemoryContextNode rootContextNode;
 
-	MemoryGraph(MemoryGraphFactory graphFactory, int sortmode) {
+	MemoryGraph(MemoryGraphFactory graphFactory, String identifier, int sortmode) {
 
-		super(graphFactory);
+		super(graphFactory, identifier);
 
 		this.sortmode = sortmode;
 
-		this.rootContextNode = new MemoryContextNode(this, null);
-		this.rootContextNode.arcXri = null;
+		this.rootContextNode = new MemoryContextNode(this, null, null);
 	}
 
 	@Override
@@ -37,7 +36,7 @@ public class MemoryGraph extends AbstractGraph implements Graph {
 	 * Misc methods
 	 */
 
-	int getSortMode() {
+	public int getSortMode() {
 
 		return this.sortmode;
 	}

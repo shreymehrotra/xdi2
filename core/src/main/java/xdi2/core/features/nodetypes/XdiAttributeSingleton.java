@@ -3,9 +3,9 @@ package xdi2.core.features.nodetypes;
 import java.util.Iterator;
 
 import xdi2.core.ContextNode;
+import xdi2.core.constants.XDIConstants;
 import xdi2.core.util.iterators.MappingIterator;
 import xdi2.core.util.iterators.NotNullIterator;
-import xdi2.core.xri3.XDI3Constants;
 import xdi2.core.xri3.XDI3SubSegment;
 
 /**
@@ -13,7 +13,7 @@ import xdi2.core.xri3.XDI3SubSegment;
  * 
  * @author markus
  */
-public final class XdiAttributeSingleton extends XdiAbstractSingleton implements XdiAttribute {
+public final class XdiAttributeSingleton extends XdiAbstractSingleton<XdiAttribute> implements XdiAttribute {
 
 	private static final long serialVersionUID = -5769813522592588864L;
 
@@ -33,6 +33,8 @@ public final class XdiAttributeSingleton extends XdiAbstractSingleton implements
 	 */
 	public static boolean isValid(ContextNode contextNode) {
 
+		if (contextNode == null) return false;
+		
 		return isValidArcXri(contextNode.getArcXri());
 	}
 
@@ -62,8 +64,7 @@ public final class XdiAttributeSingleton extends XdiAbstractSingleton implements
 
 		XDI3SubSegment valueArcXri = XdiValue.createArcXri();
 
-		ContextNode valueContextNode = this.getContextNode().getContextNode(valueArcXri);
-		if (valueContextNode == null && create) valueContextNode = this.getContextNode().createContextNode(valueArcXri);
+		ContextNode valueContextNode = create ? this.getContextNode().setContextNode(valueArcXri) : this.getContextNode().getContextNode(valueArcXri);
 		if (valueContextNode == null) return null;
 
 		return new XdiValue(valueContextNode);
@@ -75,19 +76,23 @@ public final class XdiAttributeSingleton extends XdiAbstractSingleton implements
 
 	public static XDI3SubSegment createArcXri(XDI3SubSegment arcXri) {
 
-		return XDI3SubSegment.create("" + XDI3Constants.XS_SINGLETON.charAt(0) + XDI3Constants.XS_ATTRIBUTE.charAt(0) + arcXri + XDI3Constants.XS_ATTRIBUTE.charAt(1) + XDI3Constants.XS_SINGLETON.charAt(1));
+		return XDI3SubSegment.create("" + XDIConstants.XS_ATTRIBUTE.charAt(0) + arcXri + XDIConstants.XS_ATTRIBUTE.charAt(1));
 	}
 
 	public static boolean isValidArcXri(XDI3SubSegment arcXri) {
 
 		if (arcXri == null) return false;
 
-		if (! arcXri.isSingleton()) return false;
-		if (! arcXri.isAttribute()) return false;
+		if (arcXri.isClassXs()) return false;
+		if (! arcXri.isAttributeXs()) return false;
 
-		if (! XDI3Constants.CS_PLUS.equals(arcXri.getCs()) && ! XDI3Constants.CS_DOLLAR.equals(arcXri.getCs())) return false;
+		if (XDIConstants.CS_PLUS.equals(arcXri.getCs()) || XDIConstants.CS_DOLLAR.equals(arcXri.getCs())) {
 
-		if (! arcXri.hasLiteral() && ! arcXri.hasXRef()) return false;
+			if (! arcXri.hasLiteral() && ! arcXri.hasXRef()) return false;
+		} else {
+
+			return false;
+		}
 
 		return true;
 	}

@@ -3,12 +3,12 @@ package xdi2.core.features.dictionary;
 import java.util.Iterator;
 
 import xdi2.core.ContextNode;
+import xdi2.core.constants.XDIConstants;
 import xdi2.core.constants.XDIDictionaryConstants;
 import xdi2.core.util.iterators.MappingContextNodeXriIterator;
 import xdi2.core.util.iterators.MappingRelationTargetContextNodeIterator;
 import xdi2.core.xri3.XDI3Segment;
 import xdi2.core.xri3.XDI3SubSegment;
-import xdi2.core.xri3.XDI3Constants;
 
 public class Dictionary {
 
@@ -20,12 +20,12 @@ public class Dictionary {
 
 	public static XDI3SubSegment instanceXriToDictionaryXri(XDI3SubSegment instanceXri) {
 
-		return XDI3SubSegment.create("" + XDI3Constants.CS_PLUS + "(" + instanceXri + ")");
+		return XDI3SubSegment.create("" + XDIConstants.CS_PLUS + "(" + instanceXri + ")");
 	}
 
 	public static XDI3SubSegment dictionaryXriToInstanceXri(XDI3SubSegment dictionaryXri) {
 
-		if (! XDI3Constants.CS_PLUS.equals(dictionaryXri.getCs())) return null;
+		if (! XDIConstants.CS_PLUS.equals(dictionaryXri.getCs())) return null;
 		if (! dictionaryXri.hasXRef()) return null;
 
 		return XDI3SubSegment.create(dictionaryXri.getXRef().getValue());
@@ -33,7 +33,7 @@ public class Dictionary {
 
 	public static XDI3SubSegment nativeIdentifierToInstanceXri(String nativeIdentifier) {
 
-		return XDI3SubSegment.create("" + XDI3Constants.CS_PLUS + "(" + nativeIdentifier + ")");
+		return XDI3SubSegment.create("" + XDIConstants.CS_PLUS + "(" + nativeIdentifier + ")");
 	}
 
 	public static String instanceXriToNativeIdentifier(XDI3SubSegment instanceXri) {
@@ -62,24 +62,24 @@ public class Dictionary {
 		return contextNode.containsRelation(XDIDictionaryConstants.XRI_S_IS_TYPE, type);
 	}
 
-	public static void addContextNodeType(ContextNode contextNode, XDI3Segment type) {
-
-		contextNode.createRelation(XDIDictionaryConstants.XRI_S_IS_TYPE, type);
-	}
-
-	public static void removeContextNodeType(ContextNode contextNode, XDI3Segment type) {
-
-		contextNode.deleteRelation(XDIDictionaryConstants.XRI_S_IS_TYPE, type);
-	}
-
-	public static void removeContextNodeTypes(ContextNode contextNode) {
-
-		contextNode.deleteRelations(XDIDictionaryConstants.XRI_S_IS_TYPE);
-	}
-
 	public static void setContextNodeType(ContextNode contextNode, XDI3Segment type) {
 
-		removeContextNodeTypes(contextNode);
-		addContextNodeType(contextNode, type);
+		contextNode.setRelation(XDIDictionaryConstants.XRI_S_IS_TYPE, type);
+	}
+
+	public static void delContextNodeType(ContextNode contextNode, XDI3Segment type) {
+
+		contextNode.delRelation(XDIDictionaryConstants.XRI_S_IS_TYPE, type);
+	}
+
+	public static void delContextNodeTypes(ContextNode contextNode) {
+
+		contextNode.delRelations(XDIDictionaryConstants.XRI_S_IS_TYPE);
+	}
+
+	public static void replaceContextNodeType(ContextNode contextNode, XDI3Segment type) {
+
+		delContextNodeTypes(contextNode);
+		setContextNodeType(contextNode, type);
 	}
 }

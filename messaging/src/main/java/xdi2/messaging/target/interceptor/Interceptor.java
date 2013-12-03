@@ -1,5 +1,7 @@
 package xdi2.messaging.target.interceptor;
 
-public interface Interceptor {
+import xdi2.messaging.target.Decorator;
+
+public interface Interceptor extends Decorator {
 
 }

@@ -29,25 +29,28 @@ import xdi2.messaging.target.ExecutionContext;
 import xdi2.messaging.target.MessagingTarget;
 import xdi2.messaging.target.interceptor.Interceptor;
 import xdi2.server.exceptions.Xdi2ServerException;
-import xdi2.server.registry.HttpEndpointRegistry;
+import xdi2.server.registry.HttpMessagingTargetRegistry;
 
 public class HttpTransport {
 
 	private static final Logger log = LoggerFactory.getLogger(HttpTransport.class);
 
-	private static final String HEADER_CORS = "Access-Control-Allow-Origin:";
+	private static final String[] HEADER_ALLOW = new String[] { "Allow", "GET, HEAD, POST, PUT, DELETE, TRACE, OPTIONS" };
+	private static final String[][] HEADERS_CORS = new String[][] {
+		new String[] { "Access-Control-Allow-Origin", "*" },
+		new String[] { "Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept" },
+		new String[] { "Access-Control-Allow-Methods", "GET, HEAD, POST, PUT, DELETE, TRACE, OPTIONS" }
+	};
 
-	private static final MemoryGraphFactory graphFactory = MemoryGraphFactory.getInstance();
-
-	private HttpEndpointRegistry httpEndpointRegistry;
+	private HttpMessagingTargetRegistry httpMessagingTargetRegistry;
 	private InterceptorList interceptors;
 
 	private boolean initialized;
 	private Date startup;
 
-	public HttpTransport(HttpEndpointRegistry httpEndpointRegistry) {
+	public HttpTransport(HttpMessagingTargetRegistry httpMessagingTargetRegistry) {
 
-		this.httpEndpointRegistry = httpEndpointRegistry;
+		this.httpMessagingTargetRegistry = httpMessagingTargetRegistry;
 		this.interceptors = new InterceptorList();
 		this.initialized = false;
 		this.startup = null;
@@ -110,7 +113,7 @@ public class HttpTransport {
 
 		try {
 
-			request.lookup(this.getHttpEndpointRegistry());
+			request.lookup(this.getHttpMessagingTargetRegistry());
 			this.processGetRequest(request, response);
 		} catch (Exception ex) {
 
@@ -128,7 +131,7 @@ public class HttpTransport {
 
 		try {
 
-			request.lookup(this.getHttpEndpointRegistry());
+			request.lookup(this.getHttpMessagingTargetRegistry());
 			this.processPostRequest(request, response);
 		} catch (Exception ex) {
 
@@ -146,7 +149,7 @@ public class HttpTransport {
 
 		try {
 
-			request.lookup(this.getHttpEndpointRegistry());
+			request.lookup(this.getHttpMessagingTargetRegistry());
 			this.processPutRequest(request, response);
 		} catch (Exception ex) {
 
@@ -164,7 +167,7 @@ public class HttpTransport {
 
 		try {
 
-			request.lookup(this.getHttpEndpointRegistry());
+			request.lookup(this.getHttpMessagingTargetRegistry());
 			this.processDeleteRequest(request, response);
 		} catch (Exception ex) {
 
@@ -176,8 +179,28 @@ public class HttpTransport {
 		if (log.isDebugEnabled()) log.debug("Successfully processed DELETE request.");
 	}
 
+	public void doOptions(HttpRequest request, HttpResponse response) throws IOException {
+
+		if (log.isDebugEnabled()) log.debug("Incoming OPTIONS request to " + request.getRequestPath() + ". Content-Type: " + request.getContentType() + ", Content-Length: " + request.getContentLength());
+
+		try {
+
+			response.setStatus(HttpResponse.SC_OK);
+			response.setHeader(HEADER_ALLOW[0], HEADER_ALLOW[1]);
+			for (String[] HEADER_CORS : HEADERS_CORS) response.setHeader(HEADER_CORS[0], HEADER_CORS[1]);
+			response.setContentLength(0);
+		} catch (Exception ex) {
+
+			log.error("Unexpected exception: " + ex.getMessage(), ex);
+			handleInternalException(request, response, ex);
+			return;
+		}
+
+		if (log.isDebugEnabled()) log.debug("Successfully processed OPTIONS request.");
+	}
+
 	protected void processGetRequest(HttpRequest request, HttpResponse response) throws Xdi2ServerException, IOException {
-		
+
 		MessagingTarget messagingTarget = request.getMessagingTarget();
 
 		// execute interceptors
@@ -245,7 +268,7 @@ public class HttpTransport {
 	protected void processPutRequest(HttpRequest request, HttpResponse response) throws Xdi2ServerException, IOException {
 
 		MessagingTarget messagingTarget = request.getMessagingTarget();
-	
+
 		// execute interceptors
 
 		if (this.getInterceptors().executeHttpTransportInterceptorsPut(this, request, response, messagingTarget)) return;
@@ -262,7 +285,7 @@ public class HttpTransport {
 
 		// construct message envelope from url 
 
-		MessageEnvelope messageEnvelope = readFromUrl(request, response, messagingTarget, XDIMessagingConstants.XRI_S_ADD);
+		MessageEnvelope messageEnvelope = readFromUrl(request, response, messagingTarget, XDIMessagingConstants.XRI_S_SET);
 		if (messageEnvelope == null) return;
 
 		// execute the message envelope against our message target, save result
@@ -341,14 +364,14 @@ public class HttpTransport {
 
 		MessageEnvelope messageEnvelope = MessageEnvelope.fromOperationXriAndTargetAddress(XDIMessagingConstants.XRI_S_GET, targetAddress);
 
-		// set the TO address to the owner address of the messaging target
+		// set the TO authority to the owner authority of the messaging target
 
-		XDI3Segment ownerAddress = messagingTarget.getOwnerAddress();
+		XDI3Segment ownerAuthority = messagingTarget.getOwnerAuthority();
 
-		if (ownerAddress != null) {
+		if (ownerAuthority != null) {
 
 			Message message = messageEnvelope.getMessages().next();
-			message.setToAddress(ownerAddress);
+			message.setToAuthority(ownerAuthority);
 		}
 
 		// done
@@ -372,9 +395,9 @@ public class HttpTransport {
 
 		if (log.isDebugEnabled()) log.debug("Reading message in " + recvMimeType + " with reader " + reader.getClass().getSimpleName() + ".");
 
-		Graph graph = graphFactory.openGraph();
+		Graph graph = MemoryGraphFactory.getInstance().openGraph();
 		MessageEnvelope messageEnvelope;
-		int messageCount;
+		long messageCount;
 
 		try {
 
@@ -399,7 +422,11 @@ public class HttpTransport {
 
 		// create an execution context
 
-		ExecutionContext executionContext = this.createExecutionContext(request, response);
+		ExecutionContext executionContext = new ExecutionContext();
+
+		putHttpTransport(executionContext, this);
+		putHttpRequest(executionContext, request);
+		putHttpResponse(executionContext, response);
 
 		// execute the messages and operations against our message target, save result
 
@@ -422,17 +449,6 @@ public class HttpTransport {
 		return messageResult;
 	}
 
-	protected ExecutionContext createExecutionContext(HttpRequest request, HttpResponse response) {
-
-		ExecutionContext executionContext = new ExecutionContext();
-
-		HttpExecutionContext.putHttpTransport(executionContext, this);
-		HttpExecutionContext.putHttpRequest(executionContext, request);
-		HttpExecutionContext.putHttpResponse(executionContext, response);
-
-		return executionContext;
-	}
-	
 	private static void sendResult(MessageResult messageResult, HttpRequest request, HttpResponse response) throws IOException {
 
 		// find a suitable writer based on accept headers
@@ -451,22 +467,23 @@ public class HttpTransport {
 
 		if (log.isDebugEnabled()) log.debug("Sending result in " + sendMimeType + " with writer " + writer.getClass().getSimpleName() + ".");
 
-		OutputStream outputStream = response.getBodyOutputStream();
 		ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-
 		writer.write(messageResult.getGraph(), buffer);
+
 		response.setStatus(HttpResponse.SC_OK);
+		for (String[] HEADER_CORS : HEADERS_CORS) response.setHeader(HEADER_CORS[0], HEADER_CORS[1]);
 		response.setContentType(writer.getMimeType().toString());
 		response.setContentLength(buffer.size());
-		response.setHeader(HEADER_CORS, "*");
 
 		if (buffer.size() > 0) {
 
+			OutputStream outputStream = response.getBodyOutputStream();
+
 			outputStream.write(buffer.toByteArray());
 			outputStream.flush();
-		}
 
-		outputStream.close();
+			outputStream.close();
+		}
 
 		if (log.isDebugEnabled()) log.debug("Output complete.");
 	}
@@ -488,17 +505,55 @@ public class HttpTransport {
 	}
 
 	/*
+	 * ExecutionContext helper methods
+	 */
+
+	private static final String EXECUTIONCONTEXT_KEY_HTTPTRANSPORT = HttpTransport.class.getCanonicalName() + "#httptransport";
+	private static final String EXECUTIONCONTEXT_KEY_HTTPREQUEST = HttpTransport.class.getCanonicalName() + "#httprequest";
+	private static final String EXECUTIONCONTEXT_KEY_HTTPRESPONSE = HttpTransport.class.getCanonicalName() + "#httpresponse";
+
+	public static HttpTransport getHttpTransport(ExecutionContext executionContext) {
+
+		return (HttpTransport) executionContext.getExecutionContextAttribute(EXECUTIONCONTEXT_KEY_HTTPTRANSPORT);
+	}
+
+	public static void putHttpTransport(ExecutionContext executionContext, HttpTransport httpTransport) {
+
+		executionContext.putExecutionContextAttribute(EXECUTIONCONTEXT_KEY_HTTPTRANSPORT, httpTransport);
+	}	
+
+	public static HttpRequest getHttpRequest(ExecutionContext executionContext) {
+
+		return (HttpRequest) executionContext.getExecutionContextAttribute(EXECUTIONCONTEXT_KEY_HTTPREQUEST);
+	}
+
+	public static void putHttpRequest(ExecutionContext executionContext, HttpRequest request) {
+
+		executionContext.putExecutionContextAttribute(EXECUTIONCONTEXT_KEY_HTTPREQUEST, request);
+	}	
+
+	public static HttpResponse getHttpResponse(ExecutionContext executionContext) {
+
+		return (HttpResponse) executionContext.getExecutionContextAttribute(EXECUTIONCONTEXT_KEY_HTTPRESPONSE);
+	}
+
+	public static void putHttpResponse(ExecutionContext executionContext, HttpResponse response) {
+
+		executionContext.putExecutionContextAttribute(EXECUTIONCONTEXT_KEY_HTTPRESPONSE, response);
+	}	
+
+	/*
 	 * Getters and setters
 	 */
 
-	public HttpEndpointRegistry getHttpEndpointRegistry() {
+	public HttpMessagingTargetRegistry getHttpMessagingTargetRegistry() {
 
-		return this.httpEndpointRegistry;
+		return this.httpMessagingTargetRegistry;
 	}
 
-	public void setHttpEndpointRegistry(HttpEndpointRegistry httpEndpointRegistry) {
+	public void setHttpMessagingTargetRegistry(HttpMessagingTargetRegistry httpMessagingTargetRegistry) {
 
-		this.httpEndpointRegistry = httpEndpointRegistry;
+		this.httpMessagingTargetRegistry = httpMessagingTargetRegistry;
 	}
 
 	public InterceptorList getInterceptors() {

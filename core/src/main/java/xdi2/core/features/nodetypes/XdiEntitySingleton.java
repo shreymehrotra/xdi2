@@ -3,9 +3,10 @@ package xdi2.core.features.nodetypes;
 import java.util.Iterator;
 
 import xdi2.core.ContextNode;
+import xdi2.core.constants.XDIConstants;
 import xdi2.core.util.iterators.MappingIterator;
 import xdi2.core.util.iterators.NotNullIterator;
-import xdi2.core.xri3.XDI3Constants;
+import xdi2.core.xri3.XDI3Segment;
 import xdi2.core.xri3.XDI3SubSegment;
 
 /**
@@ -13,7 +14,7 @@ import xdi2.core.xri3.XDI3SubSegment;
  * 
  * @author markus
  */
-public final class XdiEntitySingleton extends XdiAbstractSingleton implements XdiEntity {
+public final class XdiEntitySingleton extends XdiAbstractSingleton<XdiEntity> implements XdiEntity {
 
 	private static final long serialVersionUID = 7600443284706530972L;
 
@@ -33,7 +34,11 @@ public final class XdiEntitySingleton extends XdiAbstractSingleton implements Xd
 	 */
 	public static boolean isValid(ContextNode contextNode) {
 
-		return isValidArcXri(contextNode.getArcXri());
+		if (contextNode == null) return false;
+
+		return 
+				isValidArcXri(contextNode.getArcXri()) &&
+				( ! XdiAttributeCollection.isValid(contextNode.getContextNode()) && ! XdiAbstractAttribute.isValid(contextNode.getContextNode()) );
 	}
 
 	/**
@@ -54,31 +59,38 @@ public final class XdiEntitySingleton extends XdiAbstractSingleton implements Xd
 
 	public static XDI3SubSegment createArcXri(XDI3SubSegment arcXri) {
 
-		return XDI3SubSegment.create("" + XDI3Constants.XS_SINGLETON.charAt(0) + arcXri + XDI3Constants.XS_SINGLETON.charAt(1));
+		return arcXri;
 	}
 
 	public static boolean isValidArcXri(XDI3SubSegment arcXri) {
 
 		if (arcXri == null) return false;
 
-		if (arcXri.isAttribute()) return false;
+		if (arcXri.isAttributeXs()) return false;
+		if (arcXri.isClassXs()) return false;
 
-		if (XDI3Constants.CS_PLUS.equals(arcXri.getCs()) || XDI3Constants.CS_DOLLAR.equals(arcXri.getCs())) {
+		if (! arcXri.hasLiteral() && ! arcXri.hasXRef()) return false;
 
-			if (! arcXri.isSingleton()) return false;
+		if (XDIConstants.CS_PLUS.equals(arcXri.getCs()) || XDIConstants.CS_DOLLAR.equals(arcXri.getCs())) {
 
-			if (! arcXri.hasLiteral() && ! arcXri.hasXRef()) return false;
-		} else if (XDI3Constants.CS_EQUALS.equals(arcXri.getCs()) || XDI3Constants.CS_AT.equals(arcXri.getCs())) {
+		} else if (XDIConstants.CS_EQUALS.equals(arcXri.getCs()) || XDIConstants.CS_AT.equals(arcXri.getCs()) || XDIConstants.CS_STAR.equals(arcXri.getCs())) {
 
-			if (arcXri.isSingleton()) return false;
-
-			if (! arcXri.hasLiteral() && ! arcXri.hasXRef()) return false;
 		} else {
 
 			return false;
 		}
 
 		return true;
+	}
+
+	/**
+	 * Returns an XDI inner root based on this XDI entity.
+	 * @return The XDI inner root.
+	 */
+	@Override
+	public XdiInnerRoot getXdiInnerRoot(XDI3Segment innerRootPredicateXri, boolean create) {
+
+		return XdiAbstractEntity.getXdiInnerRoot(this, innerRootPredicateXri, create);
 	}
 
 	/*
