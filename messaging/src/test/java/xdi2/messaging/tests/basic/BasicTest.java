@@ -5,6 +5,7 @@ import xdi2.core.ContextNode;
 import xdi2.core.util.iterators.SingleItemIterator;
 import xdi2.core.xri3.XDI3Segment;
 import xdi2.core.xri3.XDI3Statement;
+import xdi2.core.xri3.XDI3SubSegment;
 import xdi2.messaging.DelOperation;
 import xdi2.messaging.GetOperation;
 import xdi2.messaging.Message;
@@ -47,7 +48,7 @@ public class BasicTest extends TestCase {
 
 		MessageCollection messageCollection = messageEnvelope.getMessageCollection(SENDER, true);
 
-		assertTrue(MessageCollection.isValid(messageCollection.getXdiEntityClass()));
+		assertTrue(MessageCollection.isValid(messageCollection.getXdiEntityCollection()));
 
 		assertTrue(messageEnvelope.getMessageCollections().hasNext());
 		assertNotNull(messageEnvelope.getMessageCollection(SENDER, false));
@@ -152,9 +153,9 @@ public class BasicTest extends TestCase {
 
 		MessageEnvelope messageEnvelope = new MessageEnvelope();
 		Message message = messageEnvelope.createMessage(XDI3Segment.create("=sender"));
-		message.setFromAuthority(XDI3Segment.create("([=]!1111)"));
-		message.setToAuthority(XDI3Segment.create("([=]!2222)"));
-		assertEquals(message.getFromAuthority(), XDI3Segment.create("([=]!1111)"));
-		assertEquals(message.getToAuthority(), XDI3Segment.create("([=]!2222)"));
+		message.setFromPeerRootXri(XDI3SubSegment.create("([=]!1111)"));
+		message.setToPeerRootXri(XDI3SubSegment.create("([=]!2222)"));
+		assertEquals(message.getFromPeerRootXri(), XDI3Segment.create("([=]!1111)"));
+		assertEquals(message.getToPeerRootXri(), XDI3Segment.create("([=]!2222)"));
 	}
 }

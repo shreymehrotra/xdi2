@@ -9,10 +9,11 @@ import xdi2.messaging.GetOperation;
 import xdi2.messaging.MessageResult;
 import xdi2.messaging.Operation;
 import xdi2.messaging.SetOperation;
+import xdi2.messaging.context.ExecutionContext;
 import xdi2.messaging.exceptions.Xdi2MessagingException;
 import xdi2.messaging.target.impl.graph.GraphContextHandler;
 
-public abstract class AbstractContextHandler implements StatementHandler, AddressHandler {
+public abstract class AbstractContextHandler implements ContextHandler {
 
 	public AbstractContextHandler() {
 

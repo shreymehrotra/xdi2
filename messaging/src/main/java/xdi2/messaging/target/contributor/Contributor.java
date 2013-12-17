@@ -4,11 +4,11 @@ import xdi2.core.xri3.XDI3Segment;
 import xdi2.core.xri3.XDI3Statement;
 import xdi2.messaging.MessageResult;
 import xdi2.messaging.Operation;
+import xdi2.messaging.context.ExecutionContext;
 import xdi2.messaging.exceptions.Xdi2MessagingException;
-import xdi2.messaging.target.Decorator;
-import xdi2.messaging.target.ExecutionContext;
+import xdi2.messaging.target.Extension;
 
-public interface Contributor extends Decorator {
+public interface Contributor extends Extension {
 
 	/*
 	 * Contributor addresses
@@ -38,7 +38,7 @@ public interface Contributor extends Decorator {
 	 * @param executionContext An "execution context" object for the entire XDI message envelope.
 	 * @return True, if the operation has been fully handled and the server should stop processing it.
 	 */
-	public boolean executeOnAddress(XDI3Segment[] contributorXris, XDI3Segment contributorsXri, XDI3Segment relativeTargetAddress, Operation operation, MessageResult operationMessageResult, ExecutionContext executionContext) throws Xdi2MessagingException;
+	public ContributorResult executeOnAddress(XDI3Segment[] contributorXris, XDI3Segment contributorsXri, XDI3Segment relativeTargetAddress, Operation operation, MessageResult operationMessageResult, ExecutionContext executionContext) throws Xdi2MessagingException;
 
 	/**
 	 * Executes an XDI operation on a statement.
@@ -50,5 +50,5 @@ public interface Contributor extends Decorator {
 	 * @param executionContext An "execution context" object for the entire XDI message envelope.
 	 * @return True, if the operation has been fully handled and the server should stop processing it.
 	 */
-	public boolean executeOnStatement(XDI3Segment[] contributorChainXris, XDI3Segment contributorChainXri, XDI3Statement relativeTargetStatement, Operation operation, MessageResult operationMessageResult, ExecutionContext executionContext) throws Xdi2MessagingException;
+	public ContributorResult executeOnStatement(XDI3Segment[] contributorChainXris, XDI3Segment contributorChainXri, XDI3Statement relativeTargetStatement, Operation operation, MessageResult operationMessageResult, ExecutionContext executionContext) throws Xdi2MessagingException;
 }

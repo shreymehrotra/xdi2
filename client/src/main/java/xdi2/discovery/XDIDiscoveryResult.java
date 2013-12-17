@@ -34,8 +34,6 @@ public class XDIDiscoveryResult implements Serializable {
 
 	private static final long serialVersionUID = -1141807747864855392L;
 
-	public static final XDI3Segment XRI_S_XDI = XDI3Segment.create("<$xdi>");
-
 	private CloudNumber cloudNumber;
 	private PublicKey signaturePublicKey;
 	private PublicKey encryptionPublicKey;
@@ -77,14 +75,14 @@ public class XDIDiscoveryResult implements Serializable {
 
 		if (xdiRoot instanceof XdiPeerRoot && CloudNumber.isValid(((XdiPeerRoot) xdiRoot).getXriOfPeerRoot())) {
 
-			this.cloudNumber = CloudNumber.fromPeerRootXri(((XdiPeerRoot) xdiRoot).getContextNode().getXri());
+			this.cloudNumber = CloudNumber.fromPeerRootXri(((XdiPeerRoot) xdiRoot).getArcXri());
 		}
 
 		xdiRoot = xdiRoot == null ? null : xdiRoot.dereference();
 
 		if (xdiRoot instanceof XdiPeerRoot && CloudNumber.isValid(((XdiPeerRoot) xdiRoot).getXriOfPeerRoot())) {
 
-			this.cloudNumber = CloudNumber.fromPeerRootXri(((XdiPeerRoot) xdiRoot).getContextNode().getXri());
+			this.cloudNumber = CloudNumber.fromPeerRootXri(((XdiPeerRoot) xdiRoot).getArcXri());
 		}
 
 		// find endpoint uris
@@ -138,14 +136,14 @@ public class XDIDiscoveryResult implements Serializable {
 
 		if (xdiRoot instanceof XdiPeerRoot && CloudNumber.isValid(((XdiPeerRoot) xdiRoot).getXriOfPeerRoot())) {
 
-			this.cloudNumber = CloudNumber.fromPeerRootXri(((XdiPeerRoot) xdiRoot).getContextNode().getXri());
+			this.cloudNumber = CloudNumber.fromPeerRootXri(((XdiPeerRoot) xdiRoot).getArcXri());
 		}
 
 		xdiRoot = xdiRoot == null ? null : xdiRoot.dereference();
 
 		if (xdiRoot instanceof XdiPeerRoot && CloudNumber.isValid(((XdiPeerRoot) xdiRoot).getXriOfPeerRoot())) {
 
-			this.cloudNumber = CloudNumber.fromPeerRootXri(((XdiPeerRoot) xdiRoot).getContextNode().getXri());
+			this.cloudNumber = CloudNumber.fromPeerRootXri(((XdiPeerRoot) xdiRoot).getArcXri());
 		}
 
 		// find signature public key
@@ -257,7 +255,7 @@ public class XDIDiscoveryResult implements Serializable {
 
 	public String getXdiEndpointUri() {
 
-		return this.getEndpointUris().get(XRI_S_XDI);
+		return this.getEndpointUris().get(XDIClientConstants.XRI_S_XDI);
 	}
 
 	public String getDefaultEndpointUri() {
@@ -282,6 +280,6 @@ public class XDIDiscoveryResult implements Serializable {
 	@Override
 	public String toString() {
 
-		return this.cloudNumber + " (" + this.getXdiEndpointUri() + ")";
+		return this.getCloudNumber() + " (" + this.getXdiEndpointUri() + ")";
 	}
 }

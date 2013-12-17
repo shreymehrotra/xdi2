@@ -1,7 +1,6 @@
 package xdi2.server.factory.impl;
 
 import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.util.Iterator;
 
@@ -13,8 +12,10 @@ import xdi2.core.Graph;
 import xdi2.core.exceptions.Xdi2RuntimeException;
 import xdi2.core.features.nodetypes.XdiLocalRoot;
 import xdi2.core.features.nodetypes.XdiPeerRoot;
+import xdi2.core.features.nodetypes.XdiRoot;
 import xdi2.core.util.iterators.SelectingMappingIterator;
 import xdi2.core.xri3.XDI3Segment;
+import xdi2.core.xri3.XDI3SubSegment;
 import xdi2.messaging.exceptions.Xdi2MessagingException;
 import xdi2.messaging.target.MessagingTarget;
 import xdi2.server.exceptions.Xdi2ServerException;
@@ -32,38 +33,6 @@ public class RegistryGraphMessagingTargetFactory extends PrototypingMessagingTar
 
 	private Graph registryGraph;
 
-	public Iterator<String> getRequestPaths(final String messagingTargetFactoryPath) {
-
-		Iterator<XdiPeerRoot> ownerPeerRoots = XdiLocalRoot.findLocalRoot(this.getRegistryGraph()).getPeerRoots();
-
-		return new SelectingMappingIterator<XdiPeerRoot, String> (ownerPeerRoots) {
-
-			@Override
-			public boolean select(XdiPeerRoot ownerPeerRoot) {
-
-				return ! ownerPeerRoot.isSelfPeerRoot();
-			}
-
-			@Override
-			public String map(XdiPeerRoot ownerPeerRoot) {
-
-				XDI3Segment owner = ownerPeerRoot.getXriOfPeerRoot();
-
-				String ownerString;
-
-				try {
-
-					ownerString = URLEncoder.encode(owner.toString(), "UTF-8");
-				} catch (UnsupportedEncodingException ex) { 
-
-					throw new Xdi2RuntimeException(ex.getMessage(), ex);
-				}
-
-				return messagingTargetFactoryPath + "/" + ownerString;
-			}
-		};
-	}
-
 	@Override
 	public MessagingTarget mountMessagingTarget(HttpMessagingTargetRegistry httpMessagingTargetRegistry, String messagingTargetFactoryPath, String requestPath) throws Xdi2ServerException, Xdi2MessagingException {
 
@@ -73,49 +42,42 @@ public class RegistryGraphMessagingTargetFactory extends PrototypingMessagingTar
 		if (ownerString.startsWith("/")) ownerString = ownerString.substring(1);
 		if (ownerString.contains("/")) ownerString = ownerString.substring(0, ownerString.indexOf("/"));
 
-		XDI3Segment owner;
-
-		try {
-
-			owner = XDI3Segment.create(URLDecoder.decode(ownerString, "UTF-8"));
-		} catch (UnsupportedEncodingException ex) { 
-
-			throw new Xdi2RuntimeException(ex.getMessage(), ex);
-		}
+		XDI3Segment ownerXri = XDI3Segment.create(ownerString);
 
 		// find the owner's XDI peer root
 
-		XdiPeerRoot ownerPeerRoot = XdiLocalRoot.findLocalRoot(this.getRegistryGraph()).findPeerRoot(owner, false);
+		XdiPeerRoot ownerPeerRoot = XdiLocalRoot.findLocalRoot(this.getRegistryGraph()).findPeerRoot(ownerXri, false);
 
 		if (ownerPeerRoot == null) {
 
-			log.warn("Peer root for " + owner + " not found in the registry graph. Ignoring.");
+			log.warn("Peer root for " + ownerPeerRoot + " not found in the registry graph. Ignoring.");
 			return null;
 		}
 
-		ownerPeerRoot = (XdiPeerRoot) ownerPeerRoot.dereference();
+		XdiRoot dereferencedOwnerPeerRoot = ownerPeerRoot.dereference();
+		if (dereferencedOwnerPeerRoot instanceof XdiPeerRoot) ownerPeerRoot = (XdiPeerRoot) dereferencedOwnerPeerRoot;
 
 		if (ownerPeerRoot.isSelfPeerRoot()) {
 
-			log.warn("Peer root for " + owner + " is the owner of the registry graph. Ignoring.");
+			log.warn("Peer root for " + ownerPeerRoot + " is the owner of the registry graph. Ignoring.");
 			return null;
 		}
 
-		// adjust the owner
+		// update the owner
 
-		owner = ownerPeerRoot.getXriOfPeerRoot();
+		ownerXri = ownerPeerRoot.getXriOfPeerRoot();
 
 		// find the owner's context node
 
-		ContextNode ownerContextNode = this.getRegistryGraph().getDeepContextNode(owner);
+		ContextNode ownerContextNode = this.getRegistryGraph().getDeepContextNode(ownerXri);
 
 		// create and mount the new messaging target
 
-		String messagingTargetPath = messagingTargetFactoryPath + "/" + ownerString;
+		String messagingTargetPath = messagingTargetFactoryPath + "/" + ownerXri.toString();
 
-		log.info("Will create messaging target for " + owner + " at " + messagingTargetPath);
+		log.info("Will create messaging target for " + ownerXri + " at " + messagingTargetPath);
 
-		return super.mountMessagingTarget(httpMessagingTargetRegistry, messagingTargetPath, owner, ownerPeerRoot, ownerContextNode);
+		return super.mountMessagingTarget(httpMessagingTargetRegistry, messagingTargetPath, ownerXri, ownerPeerRoot, ownerContextNode);
 	}
 
 	@Override
@@ -127,23 +89,15 @@ public class RegistryGraphMessagingTargetFactory extends PrototypingMessagingTar
 		if (ownerString.startsWith("/")) ownerString = ownerString.substring(1);
 		if (ownerString.contains("/")) ownerString = ownerString.substring(0, ownerString.indexOf("/"));
 
-		XDI3Segment owner;
+		XDI3Segment ownerXri = XDI3Segment.create(ownerString);
 
-		try {
+		// find the owner's XDI peer root
 
-			owner = XDI3Segment.create(URLDecoder.decode(ownerString, "UTF-8"));
-		} catch (UnsupportedEncodingException ex) { 
-
-			throw new Xdi2ServerException(ex.getMessage(), ex);
-		}
-
-		// find the owner's peer root context node
-
-		XdiPeerRoot ownerPeerRoot = XdiLocalRoot.findLocalRoot(this.getRegistryGraph()).findPeerRoot(owner, false);
+		XdiPeerRoot ownerPeerRoot = XdiLocalRoot.findLocalRoot(this.getRegistryGraph()).findPeerRoot(ownerXri, false);
 
 		if (ownerPeerRoot == null) {
 
-			log.warn("Peer root for " + owner + " no longer found in the registry graph. Removing messaging target.");
+			log.warn("Peer root for " + ownerXri + " no longer found in the registry graph. Removing messaging target.");
 
 			try {
 
@@ -163,6 +117,52 @@ public class RegistryGraphMessagingTargetFactory extends PrototypingMessagingTar
 			return messagingTarget;
 		}
 	}
+
+	@Override
+	public Iterator<XDI3SubSegment> getOwnerPeerRootXris() {
+
+		Iterator<XdiPeerRoot> ownerPeerRoots = XdiLocalRoot.findLocalRoot(this.getRegistryGraph()).getPeerRoots();
+
+		return new SelectingMappingIterator<XdiPeerRoot, XDI3SubSegment> (ownerPeerRoots) {
+
+			@Override
+			public boolean select(XdiPeerRoot ownerPeerRoot) {
+
+				return ! ownerPeerRoot.isSelfPeerRoot();
+			}
+
+			@Override
+			public XDI3SubSegment map(XdiPeerRoot ownerPeerRoot) {
+
+				return ownerPeerRoot.getArcXri();
+			}
+		};
+	}
+
+	@Override
+	public String getRequestPath(String messagingTargetFactoryPath, XDI3SubSegment ownerPeerRootXri) {
+
+		XDI3Segment ownerXri = XdiPeerRoot.getXriOfPeerRootArcXri(ownerPeerRootXri);
+
+		XdiPeerRoot ownerPeerRoot = XdiLocalRoot.findLocalRoot(this.getRegistryGraph()).findPeerRoot(ownerXri, false);
+		if (ownerPeerRoot == null) return null;
+
+		String ownerString;
+
+		try {
+
+			ownerString = URLEncoder.encode(ownerXri.toString(), "UTF-8");
+		} catch (UnsupportedEncodingException ex) { 
+
+			throw new Xdi2RuntimeException(ex.getMessage(), ex);
+		}
+
+		return messagingTargetFactoryPath + "/" + ownerString;
+	}
+
+	/*
+	 * Getters and setters
+	 */
 
 	public Graph getRegistryGraph() {
 

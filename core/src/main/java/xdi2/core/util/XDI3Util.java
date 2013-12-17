@@ -294,10 +294,64 @@ public final class XDI3Util {
 	}
 
 	/**
+	 * Extracts a sub-XRI from an XRI
+	 * For =a*b*c*d and 1, this returns *d
+	 * For =a*b*c*d and -1, this returns *b*c*d
+	 */
+	public static XDI3Segment subXri(final XDI3Segment xri, final int startIndex, final int endIndex) {
+
+		if (xri == null) throw new NullPointerException();
+
+		return XDI3Util.localXri(XDI3Util.parentXri(xri, endIndex), - startIndex);
+	}
+
+	/**
+	 * Get the index of an XRI inside an XRI.
+	 * For =a*b*c*d and *b, this returns =a*b
+	 * For =a*b*c*d and *c, this returns =a*b*c
+	 * For =a*b*c*d and *x, this returns null
+	 */
+	public static int indexOfXri(final XDI3Segment xri, final XDI3SubSegment search) {
+
+		if (xri == null) throw new NullPointerException();
+		if (search == null) throw new NullPointerException();
+
+		for (int i=0; i<xri.getNumSubSegments(); i++) {
+
+			XDI3SubSegment subSegment = xri.getSubSegment(i);
+
+			if (subSegment.equals(search)) return i;
+		}
+
+		return -1;
+	}
+
+	/**
+	 * Get the last index of an XRI inside an XRI.
+	 * For =a*b*c*d and *b, this returns *b*c*d
+	 * For =a*b*c*d and *c, this returns *c*d
+	 * For =a*b*c*d and *x, this returns null
+	 */
+	public static int lastIndexOfXri(final XDI3Segment xri, final XDI3SubSegment search) {
+
+		if (xri == null) throw new NullPointerException();
+		if (search == null) throw new NullPointerException();
+
+		for (int i=xri.getNumSubSegments()-1; i>=0; i--) {
+
+			XDI3SubSegment subSegment = xri.getSubSegment(i);
+
+			if (subSegment.equals(search)) return i;
+		}
+
+		return -1;
+	}
+
+	/**
 	 * Removes a start XRI from an XRI.
 	 * E.g. for =a*b*c*d and =a*b, this returns *c*d
-	 * E.g. for =a*b*c*d and (), this returns =a*b*c*d
-	 * E.g. for =a*b*c*d and =a*b*c*d, this returns ()
+	 * E.g. for =a*b*c*d and (empty address), this returns =a*b*c*d
+	 * E.g. for =a*b*c*d and =a*b*c*d, this returns (empty address)
 	 * E.g. for =a*b*c*d and =x, this returns null
 	 */
 	public static XDI3Segment removeStartXri(final XDI3Segment xri, final XDI3Segment start, final boolean variablesInXri, final boolean variablesInStart) {
@@ -340,7 +394,7 @@ public final class XDI3Util {
 	 * Removes an end XRI from an XRI.
 	 * E.g. for =a*b*c*d and *c*d, this returns =a*b
 	 * E.g. for =a*b*c*d and (), this returns =a*b*c*d
-	 * E.g. for =a*b*c*d and =a*b*c*d, this returns ()
+	 * E.g. for =a*b*c*d and =a*b*c*d, this returns (empty address)
 	 * E.g. for =a*b*c*d and *y, this returns null
 	 */
 	public static XDI3Segment removeEndXri(final XDI3Segment xri, final XDI3Segment end, final boolean variablesInXri, final boolean variablesInEnd) {
@@ -483,7 +537,7 @@ public final class XDI3Util {
 
 		XDI3Segment[] segments = new XDI3Segment[subSegments.length];
 		for (int i=0; i<subSegments.length; i++) segments[i] = XDI3Segment.fromComponent(subSegments[i]);
-		
+
 		return concatXris(segments);
 	}
 

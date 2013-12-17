@@ -18,6 +18,7 @@ import xdi2.core.features.nodetypes.XdiEntity;
 import xdi2.core.features.nodetypes.XdiEntitySingleton;
 import xdi2.core.features.nodetypes.XdiInnerRoot;
 import xdi2.core.features.nodetypes.XdiLocalRoot;
+import xdi2.core.features.nodetypes.XdiPeerRoot;
 import xdi2.core.features.nodetypes.XdiValue;
 import xdi2.core.features.signatures.Signature;
 import xdi2.core.features.signatures.Signatures;
@@ -148,17 +149,19 @@ public final class Message implements Serializable, Comparable<Message> {
 	}
 
 	/**
-	 * Return the FROM authority.
+	 * Return the FROM peer root XRI.
 	 */
-	public XDI3Segment getFromAuthority() {
+	public XDI3SubSegment getFromPeerRootXri() {
 
 		for (Iterator<Relation> incomingRelations = this.getContextNode().getIncomingRelations(); incomingRelations.hasNext(); ) {
 
 			Relation incomingRelation = incomingRelations.next();
 
-			if (incomingRelation.getArcXri().equals(XDIMessagingConstants.XRI_S_FROM_AUTHORITY)) {
+			if (incomingRelation.getArcXri().equals(XDIMessagingConstants.XRI_S_FROM_PEER_ROOT_XRI)) {
 
-				return incomingRelation.getContextNode().getXri();
+				XDI3SubSegment arcXri = incomingRelation.getContextNode().getArcXri();
+
+				if (XdiPeerRoot.isPeerRootArcXri(arcXri)) return arcXri;
 			}
 		}
 
@@ -166,31 +169,34 @@ public final class Message implements Serializable, Comparable<Message> {
 	}
 
 	/**
-	 * Set the FROM authority.
+	 * Set the FROM peer root XRI.
 	 */
-	public void setFromAuthority(XDI3Segment fromAuthority) {
+	public void setFromPeerRootXri(XDI3SubSegment fromPeerRootXri) {
 
-		this.getMessageEnvelope().getGraph().setDeepRelation(fromAuthority, XDIMessagingConstants.XRI_S_FROM_AUTHORITY, this.getContextNode());
+		this.getMessageEnvelope().getGraph().setDeepRelation(XDI3Segment.fromComponent(fromPeerRootXri), XDIMessagingConstants.XRI_S_FROM_PEER_ROOT_XRI, this.getContextNode());
 	}
 
 	/**
-	 * Return the TO authority of the message.
+	 * Return the TO peer root XRI of the message.
 	 */
-	public XDI3Segment getToAuthority() {
+	public XDI3SubSegment getToPeerRootXri() {
 
-		Relation toAuthorityRelation = this.getContextNode().getRelation(XDIMessagingConstants.XRI_S_TO_AUTHORITY);
-		if (toAuthorityRelation == null) return null;
+		Relation toPeerRootXriRelation = this.getContextNode().getRelation(XDIMessagingConstants.XRI_S_TO_PEER_ROOT_XRI);
+		if (toPeerRootXriRelation == null) return null;
 
-		return toAuthorityRelation.getTargetContextNodeXri();
+		XDI3Segment toPeerRootXri = toPeerRootXriRelation.getTargetContextNodeXri();
+		if (toPeerRootXri.getNumSubSegments() > 1 || ! XdiPeerRoot.isPeerRootArcXri(toPeerRootXri.getFirstSubSegment())) return null;
+
+		return toPeerRootXri.getFirstSubSegment();
 	}
 
 	/**
-	 * Set the TO authority of the message.
+	 * Set the TO peer root XRI of the message.
 	 */
-	public void setToAuthority(XDI3Segment toAuthority) {
+	public void setToPeerRootXri(XDI3SubSegment toPeerRootXri) {
 
-		this.getContextNode().delRelations(XDIMessagingConstants.XRI_S_TO_AUTHORITY);
-		this.getContextNode().setRelation(XDIMessagingConstants.XRI_S_TO_AUTHORITY, toAuthority);
+		this.getContextNode().delRelations(XDIMessagingConstants.XRI_S_TO_PEER_ROOT_XRI);
+		this.getContextNode().setRelation(XDIMessagingConstants.XRI_S_TO_PEER_ROOT_XRI, XDI3Segment.fromComponent(toPeerRootXri));
 	}
 
 	/**
@@ -403,6 +409,23 @@ public final class Message implements Serializable, Comparable<Message> {
 	public Operation createOperation(XDI3Segment operationXri, XDI3Statement targetStatement) {
 
 		return this.createOperation(operationXri, new SingleItemIterator<XDI3Statement> (targetStatement));
+	}
+
+	/**
+	 * Creates a new operation and adds it to this XDI message.
+	 * @param operationXri The operation XRI to use for the new operation.
+	 * @param target The target address or target statement to which the operation applies.
+	 * @return The newly created, empty operation, or null if the operation XRI is not valid.
+	 */
+	public Operation createOperation(XDI3Segment operationXri, String target) {
+
+		try {
+
+			return this.createOperation(operationXri, XDI3Segment.create(target));
+		} catch (Exception ex) {
+
+			return this.createOperation(operationXri, XDI3Statement.create(target));
+		}
 	}
 
 	/**

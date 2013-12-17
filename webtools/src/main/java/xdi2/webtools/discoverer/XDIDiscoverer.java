@@ -56,19 +56,31 @@ public class XDIDiscoverer extends javax.servlet.http.HttpServlet implements jav
 	@Override
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 
-		String sample = request.getParameter("sample");
-		if (sample == null) sample = "1";
-
 		request.setAttribute("sampleInputs", Integer.valueOf(sampleInputs.size()));
 		request.setAttribute("resultFormat", XDIDisplayWriter.FORMAT_NAME);
 		request.setAttribute("writeImplied", null);
 		request.setAttribute("writeOrdered", "on");
 		request.setAttribute("writeInner", "on");
 		request.setAttribute("writePretty", null);
-		request.setAttribute("input", sampleInputs.get(Integer.parseInt(sample) - 1));
+		request.setAttribute("input", sampleInputs.get(0));
 		request.setAttribute("endpoint", sampleEndpoint);
 		request.setAttribute("authority", "on");
 		request.setAttribute("services", sampleServices);
+
+		if (request.getParameter("sample") != null) {
+
+			request.setAttribute("input", sampleInputs.get(Integer.parseInt(request.getParameter("sample")) - 1));
+		}
+
+		if (request.getParameter("input") != null) {
+
+			request.setAttribute("input", request.getParameter("input"));
+		}
+
+		if (request.getParameter("endpoint") != null) {
+
+			request.setAttribute("endpoint", request.getParameter("endpoint"));
+		}
 
 		request.getRequestDispatcher("/XDIDiscoverer.jsp").forward(request, response);
 	}
@@ -101,6 +113,7 @@ public class XDIDiscoverer extends javax.servlet.http.HttpServlet implements jav
 
 		XDIDiscoveryResult discoveryResultRegistry = null;
 		XDIDiscoveryResult discoveryResultAuthority = null;
+		Exception exceptionAuthority = null;
 
 		long start = System.currentTimeMillis();
 
@@ -126,7 +139,14 @@ public class XDIDiscoverer extends javax.servlet.http.HttpServlet implements jav
 					endpointUriTypes = new XDI3Segment[endpointUriTypesString.length];
 					for (int i=0; i<endpointUriTypesString.length; i++) endpointUriTypes[i] = XDI3Segment.create(endpointUriTypesString[i].trim());
 
-					discoveryResultAuthority = discoveryClient.discoverFromAuthority(discoveryResultRegistry.getXdiEndpointUri(), discoveryResultRegistry.getCloudNumber(), endpointUriTypes);
+					try {
+
+						discoveryResultAuthority = discoveryClient.discoverFromAuthority(discoveryResultRegistry.getXdiEndpointUri(), discoveryResultRegistry.getCloudNumber(), endpointUriTypes);
+					} catch (Exception ex) {
+						
+						exceptionAuthority = ex;
+						discoveryResultAuthority = null;
+					}
 				}
 			}
 
@@ -180,7 +200,6 @@ public class XDIDiscoverer extends javax.servlet.http.HttpServlet implements jav
 
 			if (discoveryResultAuthority != null) {
 
-
 				writer2.write("Discovery result from authority:\n\n");
 
 				writer2.write("Cloud Number: " + discoveryResultAuthority.getCloudNumber() + "\n");
@@ -217,6 +236,9 @@ public class XDIDiscoverer extends javax.servlet.http.HttpServlet implements jav
 					xdiResultWriter.write(discoveryResultAuthority.getMessageResult().getGraph(), writer2);
 				else
 					writer2.write("(null)");
+			} else if (exceptionAuthority != null) {
+
+				writer2.write("Exception from authority: " + exceptionAuthority.getMessage() + "\n");
 			} else {
 
 				writer2.write("No discovery result from authority.\n");
@@ -234,9 +256,9 @@ public class XDIDiscoverer extends javax.servlet.http.HttpServlet implements jav
 
 				if (messageResult != null) {
 
-					StringWriter writer2 = new StringWriter();
-					xdiResultWriter.write(messageResult.getGraph(), writer2);
-					output = StringEscapeUtils.escapeHtml(writer2.getBuffer().toString());
+					StringWriter writer = new StringWriter();
+					xdiResultWriter.write(messageResult.getGraph(), writer);
+					output = StringEscapeUtils.escapeHtml(writer.getBuffer().toString());
 				}
 			}
 

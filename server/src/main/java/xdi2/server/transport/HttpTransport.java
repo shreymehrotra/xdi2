@@ -19,19 +19,21 @@ import xdi2.core.io.XDIReaderRegistry;
 import xdi2.core.io.XDIWriter;
 import xdi2.core.io.XDIWriterRegistry;
 import xdi2.core.xri3.XDI3Segment;
+import xdi2.core.xri3.XDI3SubSegment;
 import xdi2.messaging.Message;
 import xdi2.messaging.MessageEnvelope;
 import xdi2.messaging.MessageResult;
 import xdi2.messaging.constants.XDIMessagingConstants;
+import xdi2.messaging.context.ExecutionContext;
 import xdi2.messaging.error.ErrorMessageResult;
 import xdi2.messaging.http.AcceptHeader;
-import xdi2.messaging.target.ExecutionContext;
 import xdi2.messaging.target.MessagingTarget;
 import xdi2.messaging.target.interceptor.Interceptor;
 import xdi2.server.exceptions.Xdi2ServerException;
 import xdi2.server.registry.HttpMessagingTargetRegistry;
+import xdi2.server.registry.MessagingTargetMount;
 
-public class HttpTransport {
+public class HttpTransport extends AbstractTransport<HttpRequest, HttpResponse> {
 
 	private static final Logger log = LoggerFactory.getLogger(HttpTransport.class);
 
@@ -113,8 +115,9 @@ public class HttpTransport {
 
 		try {
 
-			request.lookup(this.getHttpMessagingTargetRegistry());
-			this.processGetRequest(request, response);
+			MessagingTargetMount messagingTargetMount = this.getHttpMessagingTargetRegistry().lookup(request.getRequestPath());
+
+			this.processGetRequest(request, response, messagingTargetMount);
 		} catch (Exception ex) {
 
 			log.error("Unexpected exception: " + ex.getMessage(), ex);
@@ -131,8 +134,9 @@ public class HttpTransport {
 
 		try {
 
-			request.lookup(this.getHttpMessagingTargetRegistry());
-			this.processPostRequest(request, response);
+			MessagingTargetMount messagingTargetMount = this.getHttpMessagingTargetRegistry().lookup(request.getRequestPath());
+
+			this.processPostRequest(request, response, messagingTargetMount);
 		} catch (Exception ex) {
 
 			log.error("Unexpected exception: " + ex.getMessage(), ex);
@@ -149,8 +153,9 @@ public class HttpTransport {
 
 		try {
 
-			request.lookup(this.getHttpMessagingTargetRegistry());
-			this.processPutRequest(request, response);
+			MessagingTargetMount messagingTargetMount = this.getHttpMessagingTargetRegistry().lookup(request.getRequestPath());
+
+			this.processPutRequest(request, response, messagingTargetMount);
 		} catch (Exception ex) {
 
 			log.error("Unexpected exception: " + ex.getMessage(), ex);
@@ -167,8 +172,9 @@ public class HttpTransport {
 
 		try {
 
-			request.lookup(this.getHttpMessagingTargetRegistry());
-			this.processDeleteRequest(request, response);
+			MessagingTargetMount messagingTargetMount = this.getHttpMessagingTargetRegistry().lookup(request.getRequestPath());
+
+			this.processDeleteRequest(request, response, messagingTargetMount);
 		} catch (Exception ex) {
 
 			log.error("Unexpected exception: " + ex.getMessage(), ex);
@@ -199,13 +205,13 @@ public class HttpTransport {
 		if (log.isDebugEnabled()) log.debug("Successfully processed OPTIONS request.");
 	}
 
-	protected void processGetRequest(HttpRequest request, HttpResponse response) throws Xdi2ServerException, IOException {
+	protected void processGetRequest(HttpRequest request, HttpResponse response, MessagingTargetMount messagingTargetMount) throws Xdi2ServerException, IOException {
 
-		MessagingTarget messagingTarget = request.getMessagingTarget();
+		MessagingTarget messagingTarget = messagingTargetMount == null ? null : messagingTargetMount.getMessagingTarget();
 
 		// execute interceptors
 
-		if (this.getInterceptors().executeHttpTransportInterceptorsGet(this, request, response, messagingTarget)) return;
+		if (this.getInterceptors().executeHttpTransportInterceptorsGet(this, request, response, messagingTargetMount)) return;
 
 		// no messaging target?
 
@@ -219,7 +225,7 @@ public class HttpTransport {
 
 		// construct message envelope from url 
 
-		MessageEnvelope messageEnvelope = readFromUrl(request, response, messagingTarget, XDIMessagingConstants.XRI_S_GET);
+		MessageEnvelope messageEnvelope = readFromUrl(messagingTargetMount, request, response, XDIMessagingConstants.XRI_S_GET);
 		if (messageEnvelope == null) return;
 
 		// execute the message envelope against our message target, save result
@@ -232,13 +238,13 @@ public class HttpTransport {
 		sendResult(messageResult, request, response);
 	}
 
-	protected void processPostRequest(HttpRequest request, HttpResponse response) throws Xdi2ServerException, IOException {
+	protected void processPostRequest(HttpRequest request, HttpResponse response, MessagingTargetMount messagingTargetMount) throws Xdi2ServerException, IOException {
 
-		MessagingTarget messagingTarget = request.getMessagingTarget();
+		MessagingTarget messagingTarget = messagingTargetMount == null ? null : messagingTargetMount.getMessagingTarget();
 
 		// execute interceptors
 
-		if (this.getInterceptors().executeHttpTransportInterceptorsPost(this, request, response, messagingTarget)) return;
+		if (this.getInterceptors().executeHttpTransportInterceptorsPost(this, request, response, messagingTargetMount)) return;
 
 		// no messaging target?
 
@@ -265,13 +271,13 @@ public class HttpTransport {
 		sendResult(messageResult, request, response);
 	}
 
-	protected void processPutRequest(HttpRequest request, HttpResponse response) throws Xdi2ServerException, IOException {
+	protected void processPutRequest(HttpRequest request, HttpResponse response, MessagingTargetMount messagingTargetMount) throws Xdi2ServerException, IOException {
 
-		MessagingTarget messagingTarget = request.getMessagingTarget();
+		MessagingTarget messagingTarget = messagingTargetMount == null ? null : messagingTargetMount.getMessagingTarget();
 
 		// execute interceptors
 
-		if (this.getInterceptors().executeHttpTransportInterceptorsPut(this, request, response, messagingTarget)) return;
+		if (this.getInterceptors().executeHttpTransportInterceptorsPut(this, request, response, messagingTargetMount)) return;
 
 		// no messaging target?
 
@@ -285,7 +291,7 @@ public class HttpTransport {
 
 		// construct message envelope from url 
 
-		MessageEnvelope messageEnvelope = readFromUrl(request, response, messagingTarget, XDIMessagingConstants.XRI_S_SET);
+		MessageEnvelope messageEnvelope = readFromUrl(messagingTargetMount, request, response, XDIMessagingConstants.XRI_S_SET);
 		if (messageEnvelope == null) return;
 
 		// execute the message envelope against our message target, save result
@@ -298,13 +304,13 @@ public class HttpTransport {
 		sendResult(messageResult, request, response);
 	}
 
-	protected void processDeleteRequest(HttpRequest request, HttpResponse response) throws Xdi2ServerException, IOException {
+	protected void processDeleteRequest(HttpRequest request, HttpResponse response, MessagingTargetMount messagingTargetMount) throws Xdi2ServerException, IOException {
 
-		MessagingTarget messagingTarget = request.getMessagingTarget();
+		MessagingTarget messagingTarget = messagingTargetMount == null ? null : messagingTargetMount.getMessagingTarget();
 
 		// execute interceptors
 
-		if (this.getInterceptors().executeHttpTransportInterceptorsDelete(this, request, response, messagingTarget)) return;
+		if (this.getInterceptors().executeHttpTransportInterceptorsDelete(this, request, response, messagingTargetMount)) return;
 
 		// no messaging target?
 
@@ -318,7 +324,7 @@ public class HttpTransport {
 
 		// construct message envelope from url 
 
-		MessageEnvelope messageEnvelope = readFromUrl(request, response, messagingTarget, XDIMessagingConstants.XRI_S_DEL);
+		MessageEnvelope messageEnvelope = readFromUrl(messagingTargetMount, request, response, XDIMessagingConstants.XRI_S_DEL);
 		if (messageEnvelope == null) return;
 
 		// execute the message envelope against our message target, save result
@@ -331,11 +337,13 @@ public class HttpTransport {
 		sendResult(messageResult, request, response);
 	}
 
-	private static MessageEnvelope readFromUrl(HttpRequest request, HttpResponse response, MessagingTarget messagingTarget, XDI3Segment operationXri) throws IOException {
+	private static MessageEnvelope readFromUrl(MessagingTargetMount messagingTargetMount, HttpRequest request, HttpResponse response, XDI3Segment operationXri) throws IOException {
+
+		if (messagingTargetMount == null) throw new NullPointerException();
 
 		// parse an XDI address from the request path
 
-		String addr = request.getRequestPath().substring(request.getMessagingTargetPath().length());
+		String addr = request.getRequestPath().substring(messagingTargetMount.getMessagingTargetPath().length());
 		while (addr.length() > 0 && addr.charAt(0) == '/') addr = addr.substring(1);
 
 		if (log.isDebugEnabled()) log.debug("XDI address: " + addr);
@@ -364,14 +372,14 @@ public class HttpTransport {
 
 		MessageEnvelope messageEnvelope = MessageEnvelope.fromOperationXriAndTargetAddress(XDIMessagingConstants.XRI_S_GET, targetAddress);
 
-		// set the TO authority to the owner authority of the messaging target
+		// set the TO peer root XRI to the owner peer root XRI of the messaging target
 
-		XDI3Segment ownerAuthority = messagingTarget.getOwnerAuthority();
+		XDI3SubSegment ownerPeerRootXri = messagingTargetMount.getMessagingTarget().getOwnerPeerRootXri();
 
-		if (ownerAuthority != null) {
+		if (ownerPeerRootXri != null) {
 
 			Message message = messageEnvelope.getMessages().next();
-			message.setToAuthority(ownerAuthority);
+			message.setToPeerRootXri(ownerPeerRootXri);
 		}
 
 		// done
@@ -422,11 +430,7 @@ public class HttpTransport {
 
 		// create an execution context
 
-		ExecutionContext executionContext = new ExecutionContext();
-
-		putHttpTransport(executionContext, this);
-		putHttpRequest(executionContext, request);
-		putHttpResponse(executionContext, response);
+		ExecutionContext executionContext = this.createExecutionContext(request, response);
 
 		// execute the messages and operations against our message target, save result
 
@@ -448,6 +452,22 @@ public class HttpTransport {
 
 		return messageResult;
 	}
+
+	@Override
+	public ExecutionContext createExecutionContext(HttpRequest request, HttpResponse response) {
+
+		ExecutionContext executionContext = new ExecutionContext();
+
+		executionContext.setTransport(this);
+		executionContext.setRequest(request);
+		executionContext.setResponse(response);
+
+		return executionContext;
+	}
+
+	/*
+	 * Helper methods
+	 */
 
 	private static void sendResult(MessageResult messageResult, HttpRequest request, HttpResponse response) throws IOException {
 
@@ -505,44 +525,6 @@ public class HttpTransport {
 	}
 
 	/*
-	 * ExecutionContext helper methods
-	 */
-
-	private static final String EXECUTIONCONTEXT_KEY_HTTPTRANSPORT = HttpTransport.class.getCanonicalName() + "#httptransport";
-	private static final String EXECUTIONCONTEXT_KEY_HTTPREQUEST = HttpTransport.class.getCanonicalName() + "#httprequest";
-	private static final String EXECUTIONCONTEXT_KEY_HTTPRESPONSE = HttpTransport.class.getCanonicalName() + "#httpresponse";
-
-	public static HttpTransport getHttpTransport(ExecutionContext executionContext) {
-
-		return (HttpTransport) executionContext.getExecutionContextAttribute(EXECUTIONCONTEXT_KEY_HTTPTRANSPORT);
-	}
-
-	public static void putHttpTransport(ExecutionContext executionContext, HttpTransport httpTransport) {
-
-		executionContext.putExecutionContextAttribute(EXECUTIONCONTEXT_KEY_HTTPTRANSPORT, httpTransport);
-	}	
-
-	public static HttpRequest getHttpRequest(ExecutionContext executionContext) {
-
-		return (HttpRequest) executionContext.getExecutionContextAttribute(EXECUTIONCONTEXT_KEY_HTTPREQUEST);
-	}
-
-	public static void putHttpRequest(ExecutionContext executionContext, HttpRequest request) {
-
-		executionContext.putExecutionContextAttribute(EXECUTIONCONTEXT_KEY_HTTPREQUEST, request);
-	}	
-
-	public static HttpResponse getHttpResponse(ExecutionContext executionContext) {
-
-		return (HttpResponse) executionContext.getExecutionContextAttribute(EXECUTIONCONTEXT_KEY_HTTPRESPONSE);
-	}
-
-	public static void putHttpResponse(ExecutionContext executionContext, HttpResponse response) {
-
-		executionContext.putExecutionContextAttribute(EXECUTIONCONTEXT_KEY_HTTPRESPONSE, response);
-	}	
-
-	/*
 	 * Getters and setters
 	 */
 
@@ -580,6 +562,11 @@ public class HttpTransport {
 	public String getStartupAsString() {
 
 		return new SimpleDateFormat().format(this.getStartup());
+	}
+
+	public long getStartupAsSeconds() {
+
+		return (new Date().getTime() - this.getStartup().getTime()) / 1000;
 	}
 
 	public boolean isInitialized() {

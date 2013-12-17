@@ -23,13 +23,14 @@ import xdi2.core.xri3.XDI3Statement;
 import xdi2.messaging.Message;
 import xdi2.messaging.MessageResult;
 import xdi2.messaging.Operation;
+import xdi2.messaging.context.ExecutionContext;
 import xdi2.messaging.exceptions.Xdi2MessagingException;
 import xdi2.messaging.exceptions.Xdi2NotAuthorizedException;
-import xdi2.messaging.target.ExecutionContext;
 import xdi2.messaging.target.MessagingTarget;
 import xdi2.messaging.target.Prototype;
 import xdi2.messaging.target.impl.graph.GraphMessagingTarget;
 import xdi2.messaging.target.interceptor.AbstractInterceptor;
+import xdi2.messaging.target.interceptor.InterceptorResult;
 import xdi2.messaging.target.interceptor.MessageInterceptor;
 import xdi2.messaging.target.interceptor.TargetInterceptor;
 import xdi2.messaging.target.interceptor.impl.util.MessagePolicyEvaluationContext;
@@ -93,21 +94,37 @@ public class LinkContractInterceptor extends AbstractInterceptor implements Mess
 	 */
 
 	@Override
-	public boolean before(Message message, MessageResult messageResult, ExecutionContext executionContext) throws Xdi2MessagingException {
+	public InterceptorResult before(Message message, MessageResult messageResult, ExecutionContext executionContext) throws Xdi2MessagingException {
 
 		// find the XDI link contract referenced by the message
 
 		XDI3Segment linkContractXri = message.getLinkContractXri();
-		if (linkContractXri == null) return false;
+		if (linkContractXri == null) {
+
+			if (log.isDebugEnabled()) log.debug("No link contract specified by message.");
+			return InterceptorResult.DEFAULT;
+		}
 
 		ContextNode linkContractContextNode = this.getLinkContractsGraph().getDeepContextNode(linkContractXri);
-		if (linkContractContextNode == null) return false;
+		if (linkContractContextNode == null) {
+
+			if (log.isDebugEnabled()) log.debug("No link contract context node found in graph.");
+			return InterceptorResult.DEFAULT;
+		}
 
 		XdiEntity xdiEntity = XdiAbstractEntity.fromContextNode(linkContractContextNode);
-		if (xdiEntity == null) return false;
+		if (xdiEntity == null) {
+
+			if (log.isDebugEnabled()) log.debug("No link contract entity found in graph.");
+			return InterceptorResult.DEFAULT;
+		}
 
 		LinkContract linkContract = LinkContract.fromXdiEntity(xdiEntity);
-		if (linkContract == null) return false;
+		if (linkContract == null) {
+
+			if (log.isDebugEnabled()) log.debug("No link contract found in graph.");
+			return InterceptorResult.DEFAULT;
+		}
 
 		if (log.isDebugEnabled()) log.debug("Found link contract " + linkContract);
 
@@ -116,7 +133,7 @@ public class LinkContractInterceptor extends AbstractInterceptor implements Mess
 		// evaluate the XDI policy against this message
 
 		PolicyRoot policyRoot = linkContract.getPolicyRoot(false);
-		if (policyRoot == null) return false;
+		if (policyRoot == null) return InterceptorResult.DEFAULT;
 
 		PolicyEvaluationContext policyEvaluationContext = new MessagePolicyEvaluationContext(message, this.getLinkContractsGraph());
 
@@ -127,15 +144,15 @@ public class LinkContractInterceptor extends AbstractInterceptor implements Mess
 
 		// done
 
-		return false;
+		return InterceptorResult.DEFAULT;
 	}
 
 	@Override
-	public boolean after(Message message, MessageResult messageResult, ExecutionContext executionContext) throws Xdi2MessagingException {
+	public InterceptorResult after(Message message, MessageResult messageResult, ExecutionContext executionContext) throws Xdi2MessagingException {
 
 		// done
 
-		return false;
+		return InterceptorResult.DEFAULT;
 	}
 
 	/*

@@ -7,12 +7,13 @@ import xdi2.core.features.nodetypes.XdiLocalRoot;
 import xdi2.core.features.nodetypes.XdiPeerRoot;
 import xdi2.core.xri3.XDI3Segment;
 import xdi2.core.xri3.XDI3Statement;
+import xdi2.core.xri3.XDI3SubSegment;
 import xdi2.messaging.MessageEnvelope;
 import xdi2.messaging.MessageResult;
+import xdi2.messaging.context.ExecutionContext;
 import xdi2.messaging.exceptions.Xdi2MessagingException;
 import xdi2.messaging.target.AbstractMessagingTarget;
 import xdi2.messaging.target.AddressHandler;
-import xdi2.messaging.target.ExecutionContext;
 import xdi2.messaging.target.MessagingTarget;
 import xdi2.messaging.target.Prototype;
 import xdi2.messaging.target.StatementHandler;
@@ -50,12 +51,12 @@ public class GraphMessagingTarget extends AbstractMessagingTarget implements Pro
 	}
 
 	@Override
-	public XDI3Segment getOwnerAuthority() {
+	public XDI3SubSegment getOwnerPeerRootXri() {
 
 		XdiPeerRoot selfPeerRoot = XdiLocalRoot.findLocalRoot(this.getGraph()).getSelfPeerRoot();
 		if (selfPeerRoot == null) return null;
 
-		return selfPeerRoot.getContextNode().getXri();
+		return selfPeerRoot.getContextNode().getArcXri();
 	}
 
 	@Override
@@ -107,7 +108,7 @@ public class GraphMessagingTarget extends AbstractMessagingTarget implements Pro
 
 		try {
 
-			String identifier = XdiPeerRoot.createPeerRootArcXri(prototypingContext.getOwner()).toString();
+			String identifier = XdiPeerRoot.createPeerRootArcXri(prototypingContext.getOwnerXri()).toString();
 
 			graph = this.getGraph().getGraphFactory().openGraph(identifier);
 		} catch (IOException ex) {

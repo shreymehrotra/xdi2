@@ -6,6 +6,7 @@ import java.util.Iterator;
 import xdi2.core.ContextNode;
 import xdi2.core.features.equivalence.Equivalence;
 import xdi2.core.util.iterators.MappingIterator;
+import xdi2.core.xri3.XDI3Segment;
 import xdi2.core.xri3.XDI3SubSegment;
 
 /**
@@ -26,10 +27,98 @@ public abstract class XdiAbstractContext<EQ extends XdiContext<EQ>> implements X
 		this.contextNode = contextNode;
 	}
 
+	/*
+	 * Static methods
+	 */
+
+	/**
+	 * Checks if a context node is a valid XDI subgraph.
+	 * @param contextNode The context node to check.
+	 * @return True if the context node is a valid XDI subgraph.
+	 */
+	public static boolean isValid(ContextNode contextNode) {
+
+		if (contextNode == null) return false;
+
+		return XdiAbstractRoot.isValid(contextNode) || 
+				XdiAbstractSubGraph.isValid(contextNode);
+	}
+
+	/**
+	 * Factory method that creates a XDI context bound to a given context node.
+	 * @param contextNode The context node that is an XDI context.
+	 * @return The XDI context.
+	 */
+	public static XdiContext<?> fromContextNode(ContextNode contextNode) {
+
+		XdiContext<?> xdiContext = null;
+
+		if ((xdiContext = XdiAbstractRoot.fromContextNode(contextNode)) != null) return xdiContext;
+		if ((xdiContext = XdiAbstractSubGraph.fromContextNode(contextNode)) != null) return xdiContext;
+
+		return null;
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <T extends XdiContext<?>> T fromContextNode(ContextNode contextNode, Class<T> t) {
+
+		try {
+
+			Method fromContextNode = t.getMethod("fromContextNode", ContextNode.class);
+
+			return (T) fromContextNode.invoke(null, contextNode);
+		} catch (Exception ex) {
+
+			throw new RuntimeException(ex.getMessage(), ex);
+		}
+	}
+
+	/**
+	 * Returns the "base" arc XRI, without context node type syntax.
+	 * @param arcXri The arc XRI of a context node.
+	 * @return The "base" arc XRI.
+	 */
+	public static XDI3SubSegment getBaseArcXri(XDI3SubSegment arcXri) {
+
+		StringBuilder buffer = new StringBuilder();
+
+		if (arcXri.hasCs()) buffer.append(arcXri.getCs());
+		if (arcXri.hasLiteral()) buffer.append(arcXri.getLiteral());
+		if (arcXri.hasXRef()) buffer.append(arcXri.getXRef());
+
+		return XDI3SubSegment.create(buffer.toString());
+	}
+
+	/*
+	 * Instance methods
+	 */
+
 	@Override
 	public ContextNode getContextNode() {
 
 		return this.contextNode;
+	}
+
+	@Override
+	public XDI3Segment getXri() {
+
+		return this.getContextNode().getXri();
+	}
+
+	@Override
+	public XDI3SubSegment getArcXri() {
+
+		return this.getContextNode().getArcXri();
+	}
+
+	/**
+	 * Returns the "base" arc XRI, without context node type syntax.
+	 * @return The "base" arc XRI.
+	 */
+	@Override
+	public XDI3SubSegment getBaseArcXri() {
+
+		return getBaseArcXri(this.getArcXri());
 	}
 
 	@Override
@@ -80,82 +169,6 @@ public abstract class XdiAbstractContext<EQ extends XdiContext<EQ>> implements X
 				return xdiContext;
 			}
 		};
-	}
-
-	/*
-	 * Static methods
-	 */
-
-	/**
-	 * Checks if a context node is a valid XDI subgraph.
-	 * @param contextNode The context node to check.
-	 * @return True if the context node is a valid XDI subgraph.
-	 */
-	public static boolean isValid(ContextNode contextNode) {
-
-		if (contextNode == null) return false;
-
-		return XdiAbstractRoot.isValid(contextNode) || 
-				XdiAbstractSubGraph.isValid(contextNode);
-	}
-
-	/**
-	 * Factory method that creates a XDI context bound to a given context node.
-	 * @param contextNode The context node that is an XDI context.
-	 * @return The XDI context.
-	 */
-	public static XdiContext<?> fromContextNode(ContextNode contextNode) {
-
-		XdiContext<?> xdiContext = null;
-
-		if ((xdiContext = XdiAbstractRoot.fromContextNode(contextNode)) != null) return xdiContext;
-		if ((xdiContext = XdiAbstractSubGraph.fromContextNode(contextNode)) != null) return xdiContext;
-
-		return null;
-	}
-	
-	@SuppressWarnings("unchecked")
-	public static <T extends XdiContext<?>> T fromContextNode(ContextNode contextNode, Class<T> t) {
-
-		try {
-
-			Method fromContextNode = t.getMethod("fromContextNode", ContextNode.class);
-
-			return (T) fromContextNode.invoke(null, contextNode);
-		} catch (Exception ex) {
-
-			throw new RuntimeException(ex.getMessage(), ex);
-		}
-	}
-
-	/**
-	 * Returns the "base" arc XRI, without context node type syntax.
-	 * @param arcXri The arc XRI of a context node.
-	 * @return The "base" arc XRI.
-	 */
-	public static XDI3SubSegment getBaseArcXri(XDI3SubSegment arcXri) {
-
-		StringBuilder buffer = new StringBuilder();
-
-		if (arcXri.hasCs()) buffer.append(arcXri.getCs());
-		if (arcXri.hasLiteral()) buffer.append(arcXri.getLiteral());
-		if (arcXri.hasXRef()) buffer.append(arcXri.getXRef());
-
-		return XDI3SubSegment.create(buffer.toString());
-	}
-
-	/*
-	 * Instance methods
-	 */
-
-	/**
-	 * Returns the "base" arc XRI, without context node type syntax.
-	 * @return The "base" arc XRI.
-	 */
-	@Override
-	public XDI3SubSegment getBaseArcXri() {
-
-		return getBaseArcXri(this.getContextNode().getArcXri());
 	}
 
 	/**

@@ -12,15 +12,19 @@ import xdi2.core.util.CopyUtil;
 import xdi2.core.util.iterators.IteratorListMaker;
 import xdi2.core.xri3.XDI3Segment;
 import xdi2.core.xri3.XDI3Statement;
+import xdi2.core.xri3.XDI3SubSegment;
 import xdi2.messaging.Message;
 import xdi2.messaging.MessageEnvelope;
 import xdi2.messaging.MessageResult;
 import xdi2.messaging.Operation;
+import xdi2.messaging.context.ExecutionContext;
 import xdi2.messaging.exceptions.Xdi2MessagingException;
 import xdi2.messaging.target.contributor.Contributor;
 import xdi2.messaging.target.contributor.ContributorMap;
+import xdi2.messaging.target.contributor.ContributorResult;
 import xdi2.messaging.target.interceptor.Interceptor;
 import xdi2.messaging.target.interceptor.InterceptorList;
+import xdi2.messaging.target.interceptor.InterceptorResult;
 
 /**
  * The AbstractMessagingTarget provides the following functionality:
@@ -41,13 +45,13 @@ public abstract class AbstractMessagingTarget implements MessagingTarget {
 
 	private static final Logger log = LoggerFactory.getLogger(AbstractMessagingTarget.class);
 
-	private XDI3Segment ownerAuthority;
+	private XDI3SubSegment ownerPeerRootXri;
 	private InterceptorList interceptors;
 	private ContributorMap contributors;
 
 	public AbstractMessagingTarget() {
 
-		this.ownerAuthority = null;
+		this.ownerPeerRootXri = null;
 		this.interceptors = new InterceptorList();
 		this.contributors = new ContributorMap();
 	}
@@ -59,17 +63,17 @@ public abstract class AbstractMessagingTarget implements MessagingTarget {
 
 		// init interceptors and contributors
 
-		List<Decorator> decorators = new ArrayList<Decorator> ();
-		decorators.addAll(new IteratorListMaker<Interceptor> (this.getInterceptors().iterator()).list());
-		decorators.addAll(new IteratorListMaker<Contributor> (this.getContributors().iterator()).list());
+		List<Extension> extensions = new ArrayList<Extension> ();
+		extensions.addAll(new IteratorListMaker<Interceptor> (this.getInterceptors().iterator()).list());
+		extensions.addAll(new IteratorListMaker<Contributor> (this.getContributors().iterator()).list());
 
-		Collections.sort(decorators, new Decorator.InitPriorityComparator());
+		Collections.sort(extensions, new Extension.InitPriorityComparator());
 
-		for (Decorator decorator : decorators) {
+		for (Extension extension : extensions) {
 
-			if (log.isDebugEnabled()) log.debug("Initializing interceptor/contributor " + decorator.getClass().getSimpleName() + ".");
+			if (log.isDebugEnabled()) log.debug("Initializing interceptor/contributor " + extension.getClass().getSimpleName() + ".");
 
-			decorator.init(this);
+			extension.init(this);
 		}
 	}
 
@@ -80,17 +84,17 @@ public abstract class AbstractMessagingTarget implements MessagingTarget {
 
 		// shutdon interceptors and contributors
 
-		List<Decorator> decorators = new ArrayList<Decorator> ();
-		decorators.addAll(new IteratorListMaker<Interceptor> (this.getInterceptors().iterator()).list());
-		decorators.addAll(new IteratorListMaker<Contributor> (this.getContributors().iterator()).list());
+		List<Extension> extensions = new ArrayList<Extension> ();
+		extensions.addAll(new IteratorListMaker<Interceptor> (this.getInterceptors().iterator()).list());
+		extensions.addAll(new IteratorListMaker<Contributor> (this.getContributors().iterator()).list());
 
-		Collections.sort(decorators, new Decorator.ShutdownPriorityComparator());
+		Collections.sort(extensions, new Extension.ShutdownPriorityComparator());
 
-		for (Decorator decorator : decorators) {
+		for (Extension extension : extensions) {
 
-			if (log.isDebugEnabled()) log.debug("Shutting down interceptor/contributor " + decorator.getClass().getSimpleName() + ".");
+			if (log.isDebugEnabled()) log.debug("Shutting down interceptor/contributor " + extension.getClass().getSimpleName() + ".");
 
-			decorator.shutdown(this);
+			extension.shutdown(this);
 		}
 	}
 
@@ -126,8 +130,11 @@ public abstract class AbstractMessagingTarget implements MessagingTarget {
 
 			// execute message envelope interceptors (before)
 
-			if (this.getInterceptors().executeMessageEnvelopeInterceptorsBefore(messageEnvelope, messageResult, executionContext)) {
+			InterceptorResult interceptorResultBefore = this.getInterceptors().executeMessageEnvelopeInterceptorsBefore(messageEnvelope, messageResult, executionContext);
 
+			if (interceptorResultBefore.isSkipMessagingTarget()) {
+
+				if (log.isDebugEnabled()) log.debug("Skipping messaging target according to message envelope interceptors (before).");
 				return;
 			}
 
@@ -144,8 +151,11 @@ public abstract class AbstractMessagingTarget implements MessagingTarget {
 
 			// execute message envelope interceptors (after)
 
-			if (this.getInterceptors().executeMessageEnvelopeInterceptorsAfter(messageEnvelope, messageResult, executionContext)) {
+			InterceptorResult interceptorResultAfter = this.getInterceptors().executeMessageEnvelopeInterceptorsAfter(messageEnvelope, messageResult, executionContext);
 
+			if (interceptorResultAfter.isSkipMessagingTarget()) {
+
+				if (log.isDebugEnabled()) log.debug("Skipping messaging target according to message envelope interceptors (after).");
 				return;
 			}
 
@@ -224,8 +234,11 @@ public abstract class AbstractMessagingTarget implements MessagingTarget {
 
 			// execute message interceptors (before)
 
-			if (this.getInterceptors().executeMessageInterceptorsBefore(message, messageResult, executionContext)) {
+			InterceptorResult interceptorResultBefore = this.getInterceptors().executeMessageInterceptorsBefore(message, messageResult, executionContext);
 
+			if (interceptorResultBefore.isSkipMessagingTarget()) {
+
+				if (log.isDebugEnabled()) log.debug("Skipping messaging target according to message interceptors (before).");
 				return;
 			}
 
@@ -247,8 +260,11 @@ public abstract class AbstractMessagingTarget implements MessagingTarget {
 
 			// execute message interceptors (after)
 
-			if (this.getInterceptors().executeMessageInterceptorsAfter(message, messageResult, executionContext)) {
+			InterceptorResult interceptorResultAfter = this.getInterceptors().executeMessageInterceptorsAfter(message, messageResult, executionContext);
 
+			if (interceptorResultAfter.isSkipMessagingTarget()) {
+
+				if (log.isDebugEnabled()) log.debug("Skipping messaging target according to message interceptors (after).");
 				return;
 			}
 
@@ -295,8 +311,11 @@ public abstract class AbstractMessagingTarget implements MessagingTarget {
 
 			// execute operation interceptors (before)
 
-			if (this.getInterceptors().executeOperationInterceptorsBefore(operation, operationMessageResult, executionContext)) {
+			InterceptorResult interceptorResultBefore = this.getInterceptors().executeOperationInterceptorsBefore(operation, operationMessageResult, executionContext);
 
+			if (interceptorResultBefore.isSkipMessagingTarget()) {
+
+				if (log.isDebugEnabled()) log.debug("Skipping messaging target according to operation interceptors (before).");
 				return;
 			}
 
@@ -320,8 +339,11 @@ public abstract class AbstractMessagingTarget implements MessagingTarget {
 
 			// execute operation interceptors (after)
 
-			if (this.getInterceptors().executeOperationInterceptorsAfter(operation, operationMessageResult, executionContext)) {
+			InterceptorResult interceptorResultAfter = this.getInterceptors().executeOperationInterceptorsAfter(operation, operationMessageResult, executionContext);
 
+			if (interceptorResultAfter.isSkipMessagingTarget()) {
+
+				if (log.isDebugEnabled()) log.debug("Skipping messaging target according to operation interceptors (after).");
 				return;
 			}
 
@@ -362,8 +384,11 @@ public abstract class AbstractMessagingTarget implements MessagingTarget {
 
 			// execute contributors (address)
 
-			if (this.getContributors().executeContributorsAddress(new XDI3Segment[0], targetAddress, operation, operationMessageResult, executionContext)) {
+			ContributorResult contributorResultAddress = this.getContributors().executeContributorsAddress(new XDI3Segment[0], targetAddress, operation, operationMessageResult, executionContext);
 
+			if (contributorResultAddress.isSkipMessagingTarget()) {
+
+				if (log.isDebugEnabled()) log.debug("Skipping messaging target according to contributors (address).");
 				return;
 			}
 
@@ -414,8 +439,11 @@ public abstract class AbstractMessagingTarget implements MessagingTarget {
 
 			// execute contributors (statement)
 
-			if (this.getContributors().executeContributorsStatement(new XDI3Segment[0], targetStatement, operation, operationMessageResult, executionContext)) {
+			ContributorResult contributorResultAddress = this.getContributors().executeContributorsStatement(new XDI3Segment[0], targetStatement, operation, operationMessageResult, executionContext);
 
+			if (contributorResultAddress.isSkipMessagingTarget()) {
+
+				if (log.isDebugEnabled()) log.debug("Skipping messaging target according to contributors (statement).");
 				return;
 			}
 
@@ -490,14 +518,14 @@ public abstract class AbstractMessagingTarget implements MessagingTarget {
 	 */
 
 	@Override
-	public XDI3Segment getOwnerAuthority() {
+	public XDI3SubSegment getOwnerPeerRootXri() {
 
-		return this.ownerAuthority;
+		return this.ownerPeerRootXri;
 	}
 
-	public void setOwnerAuthority(XDI3Segment ownerAuthority) {
+	public void setOwnerPeerRootXri(XDI3SubSegment ownerPeerRootXri) {
 
-		this.ownerAuthority = ownerAuthority;
+		this.ownerPeerRootXri = ownerPeerRootXri;
 	}
 
 	public InterceptorList getInterceptors() {
